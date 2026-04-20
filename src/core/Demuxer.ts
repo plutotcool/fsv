@@ -12,16 +12,16 @@ export const Demuxer = {
  * Demuxes fsv data into an FSV object ready to decode.
  */
 function demux(data: ArrayBuffer): FSV {
-  const footer = new DataView(data, data.byteLength - 4)
-  const alphaOffset = footer.getUint32(0, true)
+  const header = new DataView(data, 0)
+  const alphaOffset = header.getUint32(0, true)
 
-  const color = demuxTrack(data, 0, (alphaOffset || data.byteLength) - 4)
+  const color = demuxTrack(data, 4, (alphaOffset || data.byteLength))
 
   if (!alphaOffset) {
     return color
   }
 
-  const alpha = demuxTrack(data, alphaOffset, data.byteLength - 8)
+  const alpha = demuxTrack(data, alphaOffset, data.byteLength)
 
   return {
     ...color,
@@ -34,7 +34,12 @@ function demuxTrack(
   offset: number,
   length: number
 ): FSVTrack {
-  const manifest = extractManifest(data, offset, length)
+  const {
+    manifest,
+    byteLength: manifestOffset
+  } = extractManifest(data, offset, length)
+
+  offset += 8 + manifestOffset
 
   const fsv: FSVTrack = {
     config: manifest.config,
@@ -74,12 +79,18 @@ function extractManifest(
   data: ArrayBuffer,
   offset: number,
   length: number
-): Manifest {
-  const footer = new DataView(data, length - 4)
-  offset += footer.getUint32(0, true)
-  length -= 4 + offset
-
-  return parseManifest(
-    new TextDecoder().decode(new Uint8Array(data, offset, length))
+): {
+  byteLength: number
+  manifest: Manifest
+} {
+  const header = new DataView(data, offset)
+  const byteLength = header.getUint32(4, true)
+  const manifest = parseManifest(
+    new TextDecoder().decode(new Uint8Array(data, offset + 8, byteLength))
   )
+
+  return {
+    byteLength,
+    manifest
+  }
 }

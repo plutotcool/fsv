@@ -152,24 +152,24 @@ For non-alpha videos, it follows this structure:
 
 | Chunk size | Description                      |
 |:-----------|:---------------------------------|
-| Variable   | Internal codec and frames data   |
-| Variable   | Manifest data serialized in JSON |
-| 4 bytes    | Manifest byte offset             |
 | 4 bytes    | Empty bytes                      |
+| 4 bytes    | Manifest byte length             |
+| Variable   | Manifest data serialized in JSON |
+| Variable   | Internal codec and frames data   |
 
 For transparent videos, the structure is:
 
-| Chunk size | Description                                              | Track |
-|:-----------|:---------------------------------------------------------|-------|
-| Variable   | Internal codec and frames data                           | Color |
-| Variable   | Manifest data serialized in JSON                         | Color |
-| 4 bytes    | Manifest byte offset                                     | Color |
-| 4 bytes    | Empty bytes                                              | Color |
-| Variable   | Internal codec and frames data                           | Alpha |
-| Variable   | Manifest data serialized in JSON                         | Alpha |
-| 4 bytes    | Manifest byte offset relative to the start of alpha data | Alpha |
-| 4 bytes    | Empty bytes                                              | Alpha |
-| 4 bytes    | Alpha data byte offset                                   |       |
+| Chunk size | Description                      | Track |
+|:-----------|:---------------------------------|-------|
+| 4 bytes    | Alpha data byte offset           |       |
+| 4 bytes    | Empty bytes                      | Color |
+| 4 bytes    | Manifest byte length             | Color |
+| Variable   | Internal codec and frames data   | Color |
+| Variable   | Manifest data serialized in JSON | Color |
+| 4 bytes    | Empty bytes                      | Alpha |
+| 4 bytes    | Manifest byte length             | Alpha |
+| Variable   | Manifest data serialized in JSON | Alpha |
+| Variable   | Internal codec and frames data   | Alpha |
 
 The 4 trailing empty bytes are used to automatically discriminate between alpha
 and non-alpha videos: if the last 4 bytes of the file are empty, then it's a

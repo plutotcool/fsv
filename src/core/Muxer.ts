@@ -48,14 +48,14 @@ async function mux(
   }
 
   const alphaBuffer = await muxTrack(type, alpha, framesCount)
-  const footerBuffer = Buffer.alloc(4)
+  const headerBuffer = Buffer.alloc(4)
 
-  footerBuffer.writeUInt32LE(colorBuffer.byteLength, 0)
+  headerBuffer.writeUInt32LE(colorBuffer.byteLength + 4, 0)
 
   return Buffer.concat([
+    headerBuffer,
     colorBuffer,
-    alphaBuffer,
-    footerBuffer
+    alphaBuffer
   ])
 }
 
@@ -130,7 +130,7 @@ async function muxTrack(
   })
 
   const chunksBuffer = Buffer.concat(chunks)
-  const footerBuffer = Buffer.alloc(8)
+  const headerBuffer = Buffer.alloc(8)
   const manifestBuffer = Buffer.from(stringifyManifest({
     config: demuxer.videoDecoderConfig!,
     width: track.codedWidth!,
@@ -139,13 +139,13 @@ async function muxTrack(
     frames
   }))
 
-  footerBuffer.writeUInt32LE(chunksBuffer.byteLength, 0)
+  headerBuffer.writeUInt32LE(manifestBuffer.byteLength, 4)
 
   demuxer.close()
 
   return Buffer.concat([
-    chunksBuffer,
+    headerBuffer,
     manifestBuffer,
-    footerBuffer
+    chunksBuffer
   ])
 }
