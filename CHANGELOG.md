@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.2.1
+
+
+### 🩹 Fixes
+
+- Output codec pixel format ([fd57bba](https://github.com/plutotcool/fsv/commit/fd57bba))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+
 ## v0.2.0
 
 
