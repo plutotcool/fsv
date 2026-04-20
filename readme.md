@@ -103,11 +103,9 @@ await renderer.load('/video.fsv')
 // Load video from array buffer
 await renderer.load(arrayBuffer)
 
-// Load video stream from url
+// Load video from stream, resolving as soon as the manifest is loaded
 await renderer.loadStream('/video.fsv')
-
-// Load video stream from stream reader
-await renderer.loadStream(reader)
+await renderer.loadStream(streamReader)
 
 // Render the video at 50% of its duration
 renderer.progress(0.5)
@@ -138,8 +136,9 @@ const decoder = new Decoder((
 // Load video from array buffer
 await decoder.load(arrayBuffer)
 
-// Load video streal from stream reader
-await decoder.loadStream(reader)
+// Load video from stream, resolving as soon as the manifest is loaded
+await decoder.loadStream('/video.fsv')
+await decoder.loadStream(streamReader)
 
 // Decode the video at 50% of its duration
 decoder.progress(0.5)
@@ -150,6 +149,40 @@ decoder.seek(10)
 // Decode the 5th video frame
 decoder.set(5)
 ```
+
+## Demuxing
+
+If you need even lower-level access to the encoded video chunks to write your
+own decoding logic, use the `Demuxer` namespace:
+
+```typescript
+import { Demuxer } from '@plutotcool/fsv'
+
+// Demux video from array buffer
+const fsv = Demuxer.demux(arrayBuffer)
+
+// Demux video from stream, resolving as soon as the manifest is loaded
+const fsv = await Demuxer.demuxStream(streamReader)
+
+console.log(fsv)
+// {
+//   config: { }     // suitable video decoder config
+//   width: 1920,    // width in pixels
+//   height: 1080,   // height in pixels
+//   duration: 30,   // duration in seconds
+//   length: 750,    // number of frames
+//   indices: Map    // map from timestamps to frame indices
+//   frames: [       // progressively filled when loading from stream
+//     {
+//       keyIndex: 0 // Closest prior key frame index
+//       chunk: EncodedVideoChunk
+//     },
+//     /** 749 other frames **/
+//   ]
+// }
+```
+
+See the [FSV interface](src/core/FSV.ts) for more details on the returned object.
 
 ## Format
 
