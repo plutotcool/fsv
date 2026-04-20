@@ -95,7 +95,11 @@ import { Renderer } from '@plutotcool/fsv'
 const canvas = document.createElement('canvas')
 const renderer = new Renderer(canvas)
 
+// Load video from url
 await renderer.load('/video.fsv')
+
+// Load video from array buffer
+await renderer.load(arrayBuffer)
 
 // Render the video at 50% of its duration
 renderer.progress(0.5)
@@ -122,6 +126,9 @@ const decoder = new Decoder((
 ) => {
   // Do something with the decoded frames
 })
+
+// Load video from array buffer
+await decoder.load(arrayBuffer)
 
 // Decode the video at 50% of its duration
 decoder.progress(0.5)
