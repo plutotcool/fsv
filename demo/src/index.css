@@ -85,9 +85,9 @@ span {
 
 .viewport-measurer {
   width: 1px;
-  height: 100svh;
+  height: 100lvh;
   pointer-events: none;
   position: absolute;
-  top: -100svh;
+  top: -100lvh;
   left: -100%;
 }
