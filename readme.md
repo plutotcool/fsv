@@ -123,7 +123,7 @@ import { Decoder } from '@plutotcool/fsv'
 
 const decoder = new Decoder((
   color: VideoFrame,
-  alpha?: VideoFrame,
+  alpha: VideoFrame | undefined,
   index: number
 ) => {
   // Do something with the decoded frames
@@ -148,7 +148,7 @@ The format consists of a single binary containing both demuxed video frames and
 a manifest containing infos for decoding and rendering the video efficiently.
 It can contain an additional alpha track for videos with transparency.
 
-For non-alpha videos, its follows this structure:
+For non-alpha videos, it follows this structure:
 
 | Chunk size | Description                      |
 |:-----------|:---------------------------------|
