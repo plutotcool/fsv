@@ -22,6 +22,7 @@
     "@types/node": "^25.6.0",
     "changelogen": "^0.6.2",
     "tsdown": "^0.21.7",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.8"
   },
