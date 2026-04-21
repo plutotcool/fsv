@@ -125,4 +125,4 @@ Please use [GitHub Issues](https://github.com/plutotcool/fsv/issues) to report b
 
 ## License
 
-By contributing you agree that your contributions will be licensed under the [MIT License](LICENSE).
+By contributing you agree that your contributions will be licensed under the [MIT License](./LICENSE).
