@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.1
+
+
+### 🩹 Fixes
+
+- Decoder sets pending frame when loading from stream, even if it is the first one ([d02c9b0](https://github.com/plutotcool/fsv/commit/d02c9b0))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+
 ## v0.3.0
 
 
