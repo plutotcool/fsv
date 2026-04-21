@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.7
+
+
+### 🏡 Chore
+
+- Merge pull request #7 from plutotcool/copilot/add-copilot-instructions-file ([#7](https://github.com/plutotcool/fsv/issues/7))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+
 ## v0.3.6
 
 
