@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.2
+
+
+### 🏡 Chore
+
+- Merge pull request #3 from benjaminrobinet/fix/add-tsx-to-dep ([#3](https://github.com/plutotcool/fsv/issues/3))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+
 ## v0.3.1
 
 
