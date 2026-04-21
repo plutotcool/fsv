@@ -32,6 +32,10 @@ Then add the package to your project:
 pnpm add @plutotcool/fsv
 ```
 
+> **Note:** ffmpeg bindings are installed automatically via npm lifecycle scripts. Make sure
+> pre/post-scripts are **not** disabled in your environment (i.e. do not pass
+> `--ignore-scripts` when installing dependencies).
+
 ## Conversion
 
 To convert a video to fsv, you can simply use the `fsv convert` cli command:
