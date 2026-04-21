@@ -14,6 +14,7 @@
   "scripts": {
     "build": "tsdown",
     "build:demo": "vite build -c demo/vite.config.ts",
+    "typecheck": "tsc",
     "release": "changelogen --release --push --publish",
     "dev": "vite -c demo/vite.config.ts",
     "fsv": "tsx src/cli"
