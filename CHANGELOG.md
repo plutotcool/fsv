@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.4
+
+
+### 🩹 Fixes
+
+- Pixel format conversion and better encoder options, wrong byte offset in non-alpha format ([3e428ce](https://github.com/plutotcool/fsv/commit/3e428ce))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+
 ## v0.3.3
 
 ## v0.3.2
