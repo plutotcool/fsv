@@ -472,7 +472,7 @@ function resolveEncoderOptions(
           crf: 20,
           preset: 'slower',
           tune: 'fastdecode',
-          profile: 'main',
+          profile: 'baseline',
           level: '5.1',
           sc_threshold: '0',
           movflags: '+faststart',
