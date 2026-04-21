@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.6
+
+
+### 🏡 Chore
+
+- Merge pull request #6 from plutotcool/copilot/add-type-check-script ([#6](https://github.com/plutotcool/fsv/issues/6))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+
 ## v0.3.5
 
 
