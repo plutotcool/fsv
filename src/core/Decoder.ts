@@ -143,7 +143,9 @@ export class Decoder implements Video {
       fsv,
       loaded
     } = await Demuxer.demuxStream(reader, byteLength, () => {
-      this.pendingFrame && this.colorDecoder.set(this.pendingFrame)
+      if (this.pendingFrame !== undefined) {
+        this.colorDecoder.set(this.pendingFrame)
+      }
     })
 
     this.alphaDecoder?.close()
