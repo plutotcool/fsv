@@ -17,10 +17,10 @@ export const Demuxer = {
  * @return An object containing the demuxed FSV data ready to decode.
  */
 function demux(data: ArrayBuffer): FSV {
-  const header = new DataView(data, 0)
+  const header = new DataView(data, 0, 4)
   const alphaOffset = header.getUint32(0, true)
 
-  const color = demuxTrack(data, 4)
+  const color = demuxTrack(data, alphaOffset ? 4 : 0)
 
   if (!alphaOffset) {
     return color
@@ -326,8 +326,6 @@ function createStreamQueue(fsv: FSV) {
 
     update() {
       const trash: (() => void)[] = []
-
-      console.log(fsv.frames.length, queue)
 
       for (const [resolve, length] of queue) {
         if (length <= fsv.frames.length) {

@@ -50,7 +50,7 @@ async function mux(
   const alphaBuffer = await muxTrack(type, alpha, framesCount)
   const headerBuffer = Buffer.alloc(4)
 
-  headerBuffer.writeUInt32LE(colorBuffer.byteLength + 4, 0)
+  headerBuffer.writeUInt32LE(colorBuffer.byteLength + 4)
 
   return Buffer.concat([
     headerBuffer,

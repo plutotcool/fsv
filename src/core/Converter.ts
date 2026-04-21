@@ -224,9 +224,26 @@ async function transcode(source: string | Buffer, {
 
     output.muxer.addStream(encoder)
 
+    logger?.info('Initializing filter')
+    using filter = FilterComplexAPI.create('[in]format=yuv420p[out]', {
+      inputs: [{ label: 'in' }],
+      outputs: [{ label: 'out' }]
+    })
+
     logger?.info('Encoding frames...')
 
     const processStream = async () => {
+      while (true) {
+        const frame = await filter.receive('out')
+
+        if (!frame) {
+          break
+        }
+
+        await encoder.encode(frame)
+        frame.free()
+      }
+
       while (true) {
         const packet = await encoder.receive()
 
@@ -246,13 +263,17 @@ async function transcode(source: string | Buffer, {
         continue
       }
 
-      await encoder.encode(frame)
+      await filter.process('in', frame)
       await processStream()
 
       logger?.debug(`Encoded frame ${framesCount}`)
       frame.free()
       framesCount++
     }
+
+    logger?.debug('Flushing filter')
+    await filter.flush()
+    await processStream()
 
     logger?.debug('Flushing encoder')
     await encoder.encode(null)
@@ -332,7 +353,7 @@ async function transcodeAlpha(source: string | Buffer, {
     colorOutput.muxer.addStream(colorEncoder)
     alphaOutput.muxer.addStream(alphaEncoder)
 
-    logger?.info(`Initializing alpha split filter`)
+    logger?.info('Initializing filter')
     using filter = FilterComplexAPI.create(ALPHA_SPLIT_FILTER, {
       inputs: [
         { label: '0:v'}
@@ -449,17 +470,18 @@ function resolveEncoderOptions(
       ...(
         format === 'mp4' ? {
           crf: 20,
-          preset: 'medium',
+          preset: 'slower',
           tune: 'fastdecode',
-          profile: 'baseline',
+          profile: 'main',
           level: '5.1',
           sc_threshold: '0',
+          movflags: '+faststart',
           refs: '1',
           pixel_format: AV_PIX_FMT_YUV420P
         } :
 
         format === 'webm' ? {
-          crf: '20',
+          crf: 20,
           b: '0',
           deadline: 'good',
           'cpu-used': '2',
