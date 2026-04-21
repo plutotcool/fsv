@@ -1,0 +1,44 @@
+name: CI
+on:
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'package.json'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install
+      - name: Typecheck
+        run: pnpm typecheck
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'package.json'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build package
+        run: pnpm build
