@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.5
+
+
+### 🏡 Chore
+
+- Merge pull request #4 from plutotcool/copilot/add-guide-for-contribution ([#4](https://github.com/plutotcool/fsv/issues/4))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+
 ## v0.3.4
 
 
