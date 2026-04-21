@@ -184,6 +184,24 @@ console.log(fsv)
 
 See the [FSV interface](src/core/FSV.ts) for more details on the returned object.
 
+## Stream loading
+
+When using the renderer/decoder `loadStream` or demuxer `demuxStream` methods,
+a `loaded` method is returned, allowing you to create a promise that resolves
+when a specific number of frames have been loaded:
+
+```typescript
+const { loaded } = await renderer.loadStream(streamReader)
+const { loaded } = await decoder.loadStream(streamReader)
+const { loaded } = await Demuxer.demuxStream(streamReader)
+
+// Wait for the first 5 frames to be loaded
+await loaded(5)
+
+// Wait for all the frames to be loaded
+await loaded()
+```
+
 ## Format
 
 The format consists of a single binary containing both demuxed video frames and

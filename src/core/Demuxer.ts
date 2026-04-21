@@ -87,8 +87,8 @@ function demuxTrack(
  * @param onLoadFrames Optional callback that is called whenever new frames are
  *        made available.
  *
- * @return An object containing the FSV object and a promise that resolves when
- *         all frames have been loaded.
+ * @return A promise that resolves when the video data has started being read
+ *         from the stream.
  */
 async function demuxStream(
   reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>,
@@ -102,9 +102,13 @@ async function demuxStream(
   fsv: FSV
 
   /**
-   * A promise that resolves when all the frames have been loaded.
+   * A function that returns a promise resolving when the specified number of
+   * frames have been loaded.
+   *
+   * @param length The number of frames to wait for. If not specified, waits for
+   *        all frames to be loaded.
    */
-  finished: Promise<void>
+  loaded(length?: number): Promise<void>
 }> {
   const buffer = createStreamBuffer()
 
@@ -156,6 +160,8 @@ async function demuxStream(
     fsv.indices.set(manifest.frames[index].timestamp, index)
   }
 
+  const queue = createStreamQueue(fsv)
+
   let keyIndex: number = 0
   let loadingFrameIndex: number = 0
   let loadingFrame: ManifestFrame | undefined = manifest.frames[0]
@@ -194,10 +200,11 @@ async function demuxStream(
 
     if (loadedFrame) {
       onLoadFrames?.()
+      queue.update()
     }
   }
 
-  const finished = (async () => {
+  (async () => {
     writeFrames()
 
     while (true) {
@@ -214,7 +221,26 @@ async function demuxStream(
 
   return {
     fsv,
-    finished
+    loaded: queue.loaded
+  }
+}
+
+function extractManifest(
+  data: ArrayBufferLike,
+  offset: number
+): {
+  byteLength: number
+  manifest: Manifest
+} {
+  const header = new DataView(data, offset)
+  const byteLength = header.getUint32(4, true)
+  const manifest = parseManifest(
+    new TextDecoder().decode(new Uint8Array(data, offset + 8, byteLength))
+  )
+
+  return {
+    byteLength,
+    manifest
   }
 }
 
@@ -285,21 +311,31 @@ function createStreamBuffer() {
   return buffer
 }
 
-function extractManifest(
-  data: ArrayBufferLike,
-  offset: number
-): {
-  byteLength: number
-  manifest: Manifest
-} {
-  const header = new DataView(data, offset)
-  const byteLength = header.getUint32(4, true)
-  const manifest = parseManifest(
-    new TextDecoder().decode(new Uint8Array(data, offset + 8, byteLength))
-  )
+function createStreamQueue(fsv: FSV) {
+  const queue = new Map<() => void, number>()
 
   return {
-    byteLength,
-    manifest
+    loaded(length: number = fsv.length) {
+      return length <= fsv.frames.length
+        ? Promise.resolve()
+        : new Promise<void>(resolve => queue.set(resolve, length))
+    },
+
+    update() {
+      const trash: (() => void)[] = []
+
+      console.log(fsv.frames.length, queue)
+
+      for (const [resolve, length] of queue) {
+        if (length <= fsv.frames.length) {
+          resolve()
+          trash.push(resolve)
+        }
+      }
+
+      for (const resolve of trash) {
+        queue.delete(resolve)
+      }
+    }
   }
 }

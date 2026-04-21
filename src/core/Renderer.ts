@@ -135,8 +135,8 @@ export class Renderer implements Video {
    * @throws If the source is a stream reader and byteLength is not provided, or
    *         if the http response doesn't include a Content-Length header.
    *
-   * @returns A promise that resolves when the video is loaded and ready to be
-   *          scrubbed.
+   * @return A promise that resolves when the video data has started being read
+   *         from the stream.
    */
   public async loadStream(
     source: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>> | string,
@@ -144,10 +144,13 @@ export class Renderer implements Video {
     config?: Partial<VideoDecoderConfig>
   ): Promise<{
     /**
-     * A promise that resolves when all the frames have been loaded from the
-     * stream.
+     * A function that returns a promise resolving when the specified number of
+     * frames have been loaded.
+     *
+     * @param length The number of frames to wait for. If not specified, waits
+     *        for all frames to be loaded.
      */
-    finished: Promise<void>
+    loaded(length?: number): Promise<void>
   }> {
     let reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>
 
@@ -171,7 +174,7 @@ export class Renderer implements Video {
       )
     }
 
-    const { finished } = await this.decoder.loadStream(
+    const { loaded } = await this.decoder.loadStream(
       reader,
       byteLength,
       config
@@ -180,7 +183,7 @@ export class Renderer implements Video {
     this.initialize()
 
     return {
-      finished
+      loaded
     }
   }
 

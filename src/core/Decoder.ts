@@ -122,8 +122,8 @@ export class Decoder implements Video {
    * @param reader The reader of the stream to read the fsv data from.
    * @param byteLength The total byte length of the fsv data in the stream.
    *
-   * @return An object containing a promise that resolves when all the frames
-   *         have been loaded from the stream.
+   * @return A promise that resolves when the video data has started being read
+   *         from the stream.
    */
   public async loadStream(
     reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>,
@@ -131,14 +131,17 @@ export class Decoder implements Video {
     config?: Partial<VideoDecoderConfig>
   ): Promise<{
     /**
-     * A promise that resolves when all the frames have been loaded from the
-     * stream.
+     * A function that returns a promise resolving when the specified number of
+     * frames have been loaded.
+     *
+     * @param length The number of frames to wait for. If not specified, waits
+     *        for all frames to be loaded.
      */
-    finished: Promise<void>
+    loaded(length?: number): Promise<void>
   }> {
     const {
       fsv,
-      finished
+      loaded
     } = await Demuxer.demuxStream(reader, byteLength, () => {
       this.pendingFrame && this.colorDecoder.set(this.pendingFrame)
     })
@@ -154,7 +157,7 @@ export class Decoder implements Video {
     this.alphaFrame = undefined
 
     return {
-      finished
+      loaded
     }
   }
 
