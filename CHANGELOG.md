@@ -1,6 +1,17 @@
 # Changelog
 
 
+## v0.3.9
+
+
+### 🚀 Enhancements
+
+- Cancel reading stream when failed to initialize decoder ([f1be72e](https://github.com/plutotcool/fsv/commit/f1be72e))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+
 ## v0.3.8
 
 
