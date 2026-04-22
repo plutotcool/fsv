@@ -1,6 +1,13 @@
 # Changelog
 
 
+## v0.3.10
+
+
+### 🏡 Chore
+
+- **release:** V0.3.9 ([5473a9d](https://github.com/plutotcool/fsv/commit/5473a9d))
+
 ## v0.3.9
 
 

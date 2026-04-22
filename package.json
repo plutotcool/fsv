@@ -1,7 +1,7 @@
 {
   "name": "@plutotcool/fsv",
   "type": "module",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "Fast Scrubbing Video format",
   "license": "MIT",
   "repository": "plutotcool/fsv",
