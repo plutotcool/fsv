@@ -1,3 +1,4 @@
 allowBuilds:
   '@seydx/node-av-darwin-arm64': true
+  esbuild: true
   node-av: true
