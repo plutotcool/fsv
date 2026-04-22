@@ -1,8 +1,21 @@
 name: Release
 on:
-  push:
-    branches:
-    - main
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: 'Release type'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - patch
+          - minor
+          - major
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
 
 jobs:
   release:
@@ -17,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Setup git identity
         run: |
           git config --local user.email "plutotcool+github-actions[bot]@users.noreply.github.com"
@@ -24,7 +39,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version-file: 'package.json'
+          node-version-file: '.node-version'
           registry-url: 'https://npm.pkg.github.com'
       - name: Enable corepack
         run: corepack enable
@@ -33,7 +48,7 @@ jobs:
       - name: Build package
         run: pnpm build
       - name: Release package
-        run: pnpm release
+        run: pnpm release ${{ inputs.release-type && format('--{0}', inputs.release-type) || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
