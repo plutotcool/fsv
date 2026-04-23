@@ -83,20 +83,11 @@ async function muxTrack(
     }
   }
 
-  let demuxer: Mp4Demuxer | WebMDemuxer
-
-  switch (type) {
-    case 'mp4':
-      demuxer = new Mp4Demuxer(demuxerInit)
-      break
-
-    case 'webm':
-      demuxer = new WebMDemuxer(demuxerInit)
-      break
-
-    default:
-      throw new Error(`Unsupported mux type "${type}"`)
+  if (!(type in DEMUXERS)) {
+    throw new Error(`Unsupported mux type "${type}"`)
   }
+
+  const demuxer = new DEMUXERS[type](demuxerInit)
 
   await demuxer.loadBuffer(data)
 

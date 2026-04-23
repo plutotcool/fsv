@@ -72,7 +72,7 @@ export class TrackDecoder implements Video {
     track: FSVTrack,
     config?: Partial<VideoDecoderConfig>,
   ): Promise<void> {
-    this.config = await TrackDecoder.config(track)
+    this.config = await TrackDecoder.config(track, config)
     this.track = track
     this.currentFrame = undefined
     this.pendingFrame = undefined
@@ -148,7 +148,7 @@ export class TrackDecoder implements Video {
     }
   }
 
-  private error = (error: any): void => {
+  private error = (error: unknown): void => {
     console.error('FSV', error)
   }
 

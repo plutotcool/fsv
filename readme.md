@@ -17,17 +17,6 @@ This repository provides both:
 
 ## Installation
 
-In your .npmrc, make sure the @plutotcool scope is set to use the GitHub
-packages registry:
-
-```
-# .npmrc
-
-@plutotcool:registry=https://npm.pkg.github.com
-```
-
-Then add the package to your project:
-
 ```shell
 pnpm add @plutotcool/fsv
 ```
