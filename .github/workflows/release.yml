@@ -40,7 +40,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
-          registry-url: 'https://registry.npmjs.org'
       - name: Enable corepack
         run: corepack enable
       - name: Install dependencies
@@ -51,7 +50,6 @@ jobs:
         run: pnpm release ${{ inputs.release-type && format('--{0}', inputs.release-type) || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: 'true'
       - name: Setup node for GitHub Packages
         uses: actions/setup-node@v4
         with:
