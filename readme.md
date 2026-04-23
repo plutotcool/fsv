@@ -8,6 +8,10 @@ scrubbing on the web, supporting alpha channel. It has been inspired by the
 
 <img src="demo.gif" width="320" height="307"/>
 
+> **Early development (v0):** This package is currently in v0. The API is
+> unstable and may change between releases without prior notice. Pin your
+> dependency to a specific version if stability matters for your project.
+
 This repository provides both:
 - **Conversion API**: based on [node-av](https://github.com/seydx/node-av) for
   encoding using ffmpeg node bindings, and
