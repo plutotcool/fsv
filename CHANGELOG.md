@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.3.13
+
+[compare changes](https://github.com/plutotcool/fsv/compare/v0.3.12...v0.3.13)
+
+### 🏡 Chore
+
+- Normalize repository url for npm trusted publishing oidc validation ([27adac8](https://github.com/plutotcool/fsv/commit/27adac8))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+
 ## v0.3.12
 
 [compare changes](https://github.com/plutotcool/fsv/compare/v0.3.11...v0.3.12)
