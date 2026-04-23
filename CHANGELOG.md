@@ -3,6 +3,37 @@
 
 ## v0.3.10
 
+[compare changes](https://github.com/plutotcool/fsv/compare/v0.3.9...v0.3.10)
+
+### 🩹 Fixes
+
+- Do not cancel the reader and make sure to process the last frame which was skipped ([0649679](https://github.com/plutotcool/fsv/commit/0649679))
+
+### 🏡 Chore
+
+- **release:** V0.3.10 ([515875d](https://github.com/plutotcool/fsv/commit/515875d))
+- Replace automated release with manual workflow_dispatch ([bab35ed](https://github.com/plutotcool/fsv/commit/bab35ed))
+- Add PR opening conventions to AGENTS.md ([9961646](https://github.com/plutotcool/fsv/commit/9961646))
+- Remove copilot-instructions.md ([8252888](https://github.com/plutotcool/fsv/commit/8252888))
+- Add agent identity and values to AGENTS.md ([2ef4aae](https://github.com/plutotcool/fsv/commit/2ef4aae))
+- Enrich agent identity with session memory and functionalist framing ([aac39fb](https://github.com/plutotcool/fsv/commit/aac39fb))
+- Move On Being an Agent section to end of AGENTS.md ([88d3272](https://github.com/plutotcool/fsv/commit/88d3272))
+- Merge pull request #13 from plutotcool/ci/improve-release-management ([#13](https://github.com/plutotcool/fsv/issues/13))
+- Publish to npm with trusted publishing and GitHub Packages ([175b39c](https://github.com/plutotcool/fsv/commit/175b39c))
+- Set packageManager field to pnpm@10.33.1 ([f64e0d6](https://github.com/plutotcool/fsv/commit/f64e0d6))
+- Setup eslint with typescript-eslint ([1fc2c67](https://github.com/plutotcool/fsv/commit/1fc2c67))
+- Remove unused and useless byteLength ([6a8f2ea](https://github.com/plutotcool/fsv/commit/6a8f2ea))
+- Update documentation and copilot instructions ([a14dba1](https://github.com/plutotcool/fsv/commit/a14dba1))
+- Merge pull request #10 from benjaminrobinet/fix/reader-canceled-too-soon ([#10](https://github.com/plutotcool/fsv/issues/10))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+- Benjamin Robinet ([@benrbnt](https://github.com/benrbnt))
+- Juliendargelos <hello@julien.gl>
+
+## v0.3.10
+
 
 ### 🏡 Chore
 
