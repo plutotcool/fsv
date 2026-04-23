@@ -22,7 +22,7 @@ export interface FSVTrack {
   height: number
 
   /**
-   * The duration of the video in seconds.
+   * The duration of the video in microseconds.
    */
   duration: number
 
