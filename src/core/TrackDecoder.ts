@@ -39,7 +39,7 @@ export class TrackDecoder implements Video {
   }
 
   public get duration() {
-    return (this.track?.duration || 0) / 1_000_000
+    return this.track?.duration || 0
   }
 
   public get length() {
@@ -82,7 +82,7 @@ export class TrackDecoder implements Video {
   }
 
   public seek(time: number): void {
-    this.progress(time / this.duration)
+    this.progress(time / (this.duration /  1_000_000))
   }
 
   public progress(progress: number): void {
