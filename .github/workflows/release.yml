@@ -50,6 +50,13 @@ jobs:
         run: pnpm release ${{ inputs.release-type && format('--{0}', inputs.release-type) || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup node for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Publish to npm
+        run: npm publish
       - name: Setup node for GitHub Packages
         uses: actions/setup-node@v4
         with:

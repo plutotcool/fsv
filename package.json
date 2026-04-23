@@ -17,7 +17,7 @@
     "build:demo": "vite build -c demo/vite.config.ts",
     "typecheck": "tsc",
     "lint": "eslint src",
-    "release": "changelogen --release --push --publish",
+    "release": "changelogen --release --push",
     "dev": "vite -c demo/vite.config.ts",
     "fsv": "tsx src/cli"
   },
