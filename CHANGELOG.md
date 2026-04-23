@@ -1,6 +1,20 @@
 # Changelog
 
 
+## v0.3.14
+
+[compare changes](https://github.com/plutotcool/fsv/compare/v0.3.13...v0.3.14)
+
+### 🏡 Chore
+
+- Upgrade npm to latest before publishing to support trusted publishing ([1d6a5be](https://github.com/plutotcool/fsv/commit/1d6a5be))
+- Upgrade node to 24 lts to support npm trusted publishing ([3809e56](https://github.com/plutotcool/fsv/commit/3809e56))
+- Remove npm upgrade step superseded by node 24 upgrade ([1bf915d](https://github.com/plutotcool/fsv/commit/1bf915d))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+
 ## v0.3.13
 
 [compare changes](https://github.com/plutotcool/fsv/compare/v0.3.12...v0.3.13)
