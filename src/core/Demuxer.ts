@@ -83,7 +83,6 @@ function demuxTrack(
  * Demuxes fsv data from a stream into an FSV object ready to decode.
  *
  * @param reader The reader of the stream to read the fsv data from.
- * @param byteLength The total byte length of the fsv data in the stream.
  * @param onLoadFrames Optional callback that is called whenever new frames are
  *        made available.
  *
@@ -92,7 +91,6 @@ function demuxTrack(
  */
 async function demuxStream(
   reader: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>,
-  byteLength: number,
   onLoadFrames?: () => void
 ): Promise<{
   /**
