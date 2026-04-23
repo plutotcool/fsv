@@ -127,7 +127,6 @@ export class Renderer implements Video {
    * optional video decoder config.
    *
    * @param source The video source as an stream reader or a url.
-   * @param byteLength Optional total byte length of the fsv data in the stream.
    * @param config Optional video decoder config that overrides the one from the
    *        fsv manifest.
    *
@@ -138,7 +137,6 @@ export class Renderer implements Video {
    */
   public async loadStream(
     source: ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>> | string,
-    byteLength?: number,
     config?: Partial<VideoDecoderConfig>
   ): Promise<{
     /**
