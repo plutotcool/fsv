@@ -39,7 +39,7 @@ export class TrackDecoder implements Video {
   }
 
   public get duration() {
-    return this.track?.duration || 0
+    return (this.track?.duration || 0) / 1_000_000
   }
 
   public get length() {
