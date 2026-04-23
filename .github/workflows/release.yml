@@ -55,8 +55,6 @@ jobs:
         with:
           node-version-file: '.node-version'
           registry-url: 'https://registry.npmjs.org'
-      - name: Upgrade npm
-        run: npm install -g npm@latest
       - name: Publish to npm
         run: npm publish
       - name: Setup node for GitHub Packages
