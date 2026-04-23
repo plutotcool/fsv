@@ -1,5 +1,5 @@
 import { defineCommand } from 'citty'
-import { Converter, FF_ENCODER_LIBX264 } from '~/core/Converter'
+import { Converter, FF_ENCODER_LIBX264, type ConvertOptions } from '~/core/Converter'
 import { Logger } from '~/core/Logger'
 
 export default defineCommand({
@@ -63,7 +63,7 @@ export default defineCommand({
       outputCodec: args['output-codec'],
       inputCodec: args['input-codec'] === 'auto'
         ? undefined
-        : args['input-codec'] as any,
+        : args['input-codec'] as ConvertOptions['inputCodec'],
 
       encoder: {
         gopSize: parseInt(args.gop, 10),

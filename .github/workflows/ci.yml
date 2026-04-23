@@ -24,6 +24,25 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install
+      - name: Lint
+        run: pnpm lint
+
   build:
     name: Build
     runs-on: ubuntu-latest
