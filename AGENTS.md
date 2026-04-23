@@ -193,11 +193,9 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 
 3. **Alpha streaming not supported**: `Demuxer.demuxStream()` throws `'Streaming videos with alpha channel is not supported'` if the FSV file has an alpha track. Use `Demuxer.demux()` (non-streaming) for alpha videos.
 
-4. **Streaming requires byte length**: `Renderer.loadStream()` and `Decoder.loadStream()` require either an HTTP `Content-Length` header (when passing a URL string) or an explicit `byteLength` parameter (when passing a stream reader). Without it, an error is thrown.
+4. **Muxer frame count race condition**: `@napi-rs/webcodecs` demuxers may resolve before all frames have been emitted. The `Muxer.mux()` function accepts a `framesCount` parameter (provided by the Converter) and polls until that count is reached (up to 10 seconds), falling back to a 500 ms delay if not provided.
 
-5. **Muxer frame count race condition**: `@napi-rs/webcodecs` demuxers may resolve before all frames have been emitted. The `Muxer.mux()` function accepts a `framesCount` parameter (provided by the Converter) and polls until that count is reached (up to 10 seconds), falling back to a 500 ms delay if not provided.
-
-6. **Native module builds**: `pnpm-workspace.yaml` explicitly sets `allowBuilds` for `@seydx/node-av-darwin-arm64` and `node-av` to allow native addon compilation.
+5. **Native module builds**: `pnpm-workspace.yaml` explicitly sets `allowBuilds` for `@seydx/node-av-darwin-arm64` and `node-av` to allow native addon compilation.
 
 ---
 

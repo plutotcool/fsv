@@ -131,8 +131,7 @@ export class Renderer implements Video {
    * @param config Optional video decoder config that overrides the one from the
    *        fsv manifest.
    *
-   * @throws If the source is a stream reader and byteLength is not provided, or
-   *         if the http response doesn't include a Content-Length header.
+   * @throws If the video fails to load or if the stream reader encounters an error
    *
    * @return A promise that resolves when the video data has started being read
    *         from the stream.
@@ -163,22 +162,13 @@ export class Renderer implements Video {
         throw new Error(`Failed to fetch video: ${response.statusText}`)
       }
 
-      byteLength ||= parseInt(response.headers.get('content-length') || '0', 10)
       reader = response.body!.getReader()
     } else {
       reader = source
     }
 
-    if (!byteLength) {
-      throw new Error(
-        'Streaming requires a Content-Length header ' +
-        'or explicit byteLength parameter'
-      )
-    }
-
     const { loaded } = await this.decoder.loadStream(
       reader,
-      byteLength,
       config
     )
 
