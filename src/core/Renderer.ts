@@ -3,6 +3,37 @@ import { Decoder } from './Decoder'
 import vertex from './shaders/renderer.vert'
 import fragment from './shaders/renderer.frag'
 
+export interface RendererOptions {
+  /**
+   * The canvas element to use for rendering the video frames.
+   * If not provided, a new canvas element will be created.
+   */
+  canvas?: HTMLCanvasElement
+
+  /**
+   * Optional WebGL context attributes that can be used to customize the
+   * behavior of the WebGL context used for rendering the video frames. The
+   * given object is merged with these default values:
+   * alpha: true
+   * antialias: false
+   * premultipliedAlpha: true
+   * depth: false
+   * preserveDrawingBuffer: false
+   * stencil: false
+   */
+  context?: WebGLContextAttributes
+
+  /**
+   * Besides the webgl context's own "premultipliedAlpha" attribute, this option
+   * determine if the video frames rgb channels should be multiplied by their
+   * alpha channel in the fragment shader. It has no effect on the webgl context
+   * attribute which should be set using the "context" option.
+   *
+   * @default true
+   */
+  premultiplyAlpha?: boolean
+}
+
 /**
  * Provides methods to scrub and render videos in fsv or fsv tuple formats onto
  * a canvas.
@@ -14,6 +45,13 @@ export class Renderer implements Video {
   public canvas: HTMLCanvasElement
   public alpha: boolean = false
 
+  /**
+   * Determines if the video frames rgb channels should be multiplied by their
+   * alpha channel in the fragment shader. When changed, the initialize method
+   * must be called to recreate the WebGL program with the correct shaders.
+   */
+  public premultiplyAlpha: boolean
+
   private gl: WebGL2RenderingContext
   private decoder: Decoder
   private buffer: WebGLBuffer
@@ -23,6 +61,7 @@ export class Renderer implements Video {
   private program?: WebGLProgram
   private colorTexture: WebGLTexture
   private alphaTexture?: WebGLTexture
+  private currentPremultiplyAlpha: boolean
 
   public get width() {
     return this.decoder.width
@@ -50,18 +89,25 @@ export class Renderer implements Video {
 
   /**
    * Creates a new Renderer instance with the provided canvas element and
-   * options.
+   * additional options.
    *
-   * @param canvas The canvas element to use for rendering the video frames.
-   *        If not provided, a new canvas element will be created.
+   * @param options The options for configuring the renderer.
    */
-  public constructor(canvas?: HTMLCanvasElement) {
+  public constructor({
+    canvas,
+    premultiplyAlpha = true,
+    context: contextAttributes
+  }: RendererOptions = {}) {
     canvas ||= document.createElement('canvas')
 
     const gl = canvas.getContext('webgl2', {
       alpha: true,
       antialias: false,
-      premultipliedAlpha: true
+      premultipliedAlpha: true,
+      depth: false,
+      preserveDrawingBuffer: false,
+      stencil: false,
+      ...contextAttributes
     })
 
     if (!gl) {
@@ -70,6 +116,8 @@ export class Renderer implements Video {
 
     this.gl = gl
     this.canvas = canvas
+    this.premultiplyAlpha = premultiplyAlpha
+    this.currentPremultiplyAlpha = premultiplyAlpha
     this.decoder = new Decoder(this.draw.bind(this))
 
     this.colorTexture = this.createTexture()
@@ -205,8 +253,18 @@ export class Renderer implements Video {
     this.gl.deleteBuffer(this.buffer)
   }
 
-  private initialize() {
-    if (this.program && this.alpha === this.decoder.alpha) {
+  /**
+   * Initializes the WebGL program, shaders and textures based on the current
+   * renderer and decoder state. It is already called internally anytime a new
+   * video is loaded. It can be called manually if the `premultiplyAlpha` option
+   * changed, or if the program or textures need to be recreated for any reason.
+   */
+  public initialize() {
+    if (
+      this.program &&
+      this.alpha === this.decoder.alpha &&
+      this.premultiplyAlpha === this.currentPremultiplyAlpha
+    ) {
       return
     }
 
@@ -223,6 +281,7 @@ export class Renderer implements Video {
     this.program = program
     this.vertexShader = vertexShader
     this.fragmentShader = fragmentShader
+    this.currentPremultiplyAlpha = this.premultiplyAlpha
 
     this.gl.useProgram(program)
     this.gl.uniform1i(this.gl.getUniformLocation(program, 'color'), 0)
@@ -287,14 +346,24 @@ export class Renderer implements Video {
   }
 
   private createShader(type: GLenum, source: string): WebGLShader {
-    if (this.alpha) {
-      source = source.replace(/^(#version\s+.+)$/m, '$1\n#define ALPHA 1')
-    }
-
     const shader = this.gl.createShader(type)
 
     if (!shader) {
       throw new Error('Unable to create WebGL shader')
+    }
+
+    if (this.premultiplyAlpha) {
+      source = source.replace(
+        /^(#version\s+.+)$/m,
+        '$1\n#define PREMULTIPLY_ALPHA 1'
+      )
+    }
+
+    if (this.alpha) {
+      source = source.replace(
+        /^(#version\s+.+)$/m,
+        '$1\n#define ALPHA 1'
+      )
     }
 
     this.gl.shaderSource(shader, source)

@@ -16,6 +16,9 @@ void main() {
 
   #ifdef ALPHA
     fragColor.a = texture(alpha, vUv).r;
-    fragColor.rgb *= fragColor.a;
+
+    #ifdef PREMULTIPLY_ALPHA
+      fragColor.rgb *= fragColor.a;
+    #endif
   #endif
 }

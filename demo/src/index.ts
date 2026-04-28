@@ -6,7 +6,7 @@ import { Renderer } from '@plutotcool/fsv'
   const viewportMeasurer = document.querySelector<HTMLElement>('.viewport-measurer')!
   const frames = document.querySelector('span')!
   const canvas = document.querySelector('canvas')!
-  const renderer = new Renderer(canvas)
+  const renderer = new Renderer({ canvas })
 
   await renderer.load('/video.fsv')
 

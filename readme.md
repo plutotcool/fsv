@@ -92,7 +92,7 @@ To render a fsv video in the browser with frame-accurate scrubbing, use the
 import { Renderer } from '@plutotcool/fsv'
 
 const canvas = document.createElement('canvas')
-const renderer = new Renderer(canvas)
+const renderer = new Renderer({ canvas })
 
 // Load video from url
 await renderer.load('/video.fsv')
