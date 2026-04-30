@@ -44,6 +44,11 @@
   "peerDependencies": {
     "@types/node": "^25.6.0"
   },
+  "pnpm": {
+    "overrides": {
+      "ip": "npm:@webpod/ip@^0.6.1"
+    }
+  },
   "exports": {
     ".": {
       "import": "./dist/index.mjs",

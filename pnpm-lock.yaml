@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  ip: npm:@webpod/ip@^0.6.1
+
 importers:
 
   .:
@@ -738,6 +741,10 @@ packages:
   '@vitest/utils@4.1.5':
     resolution: {integrity: sha512-76wdkrmfXfqGjueGgnb45ITPyUi1ycZ4IHgC2bhPDUfWHklY/q3MdLOAB+TF1e6xfl8NxNY0ZYaPCFNWSsw3Ug==}
 
+  '@webpod/ip@0.6.1':
+    resolution: {integrity: sha512-0oPIqLPfoIPzstsbmWUFlLx9I8KiisiC9/+YQPaotVU67DnTV+vx/zXXnkMgZTKu9rHWznmUQX3jgvfqr1t4+g==}
+    engines: {node: '>=10'}
+
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
     peerDependencies:
@@ -1066,9 +1073,6 @@ packages:
 
   int64-buffer@1.1.0:
     resolution: {integrity: sha512-94smTCQOvigN4d/2R/YDjz8YVG0Sufvv2aAh8P5m42gwhCsDAJqnbNOrxJsrADuAFAA69Q/ptGzxvNcNuIJcvw==}
-
-  ip@2.0.1:
-    resolution: {integrity: sha512-lJUL9imLTNi1ZfXT+DU6rBBdbiKGBuay9B6xGSPVjUeQwaH1RIGqef8RZkUtHioLmSNpPR5M4HVKJGm1j8FWVQ==}
 
   is-docker@3.0.0:
     resolution: {integrity: sha512-eljcgEDlEns/7AXFosB5K/2nCM4P7FQPkGc/DWLy5rmFEWvZayGrik1d9/QIY5nJ4f9YsVvBkA6kJpHn9rISdQ==}
@@ -2284,6 +2288,8 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
+  '@webpod/ip@0.6.1': {}
+
   acorn-jsx@5.3.2(acorn@8.16.0):
     dependencies:
       acorn: 8.16.0
@@ -2613,8 +2619,6 @@ snapshots:
   inherits@2.0.4: {}
 
   int64-buffer@1.1.0: {}
-
-  ip@2.0.1: {}
 
   is-docker@3.0.0: {}
 
@@ -3126,7 +3130,7 @@ snapshots:
       buffer-crc32: 1.0.0
       debug: 4.4.0
       int64-buffer: 1.1.0
-      ip: 2.0.1
+      ip: '@webpod/ip@0.6.1'
       lodash: 4.18.1
       multicast-dns: 7.2.5
       p-cancelable: 2.1.1
@@ -3159,7 +3163,7 @@ snapshots:
       debug: 4.4.0
       fast-deep-equal: 3.1.3
       int64-buffer: 1.1.0
-      ip: 2.0.1
+      ip: '@webpod/ip@0.6.1'
       mp4box: 0.5.4
       multicast-dns: 7.2.5
       tweetnacl: 1.0.3
