@@ -1,6 +1,4 @@
 import fs from 'node:fs/promises'
-import os from 'node:os'
-import crypto from 'node:crypto'
 import type { ConsolaInstance } from 'consola'
 
 import type {
@@ -11,25 +9,46 @@ import type {
   Stream
 } from 'node-av'
 
+import { CodecParameters } from 'node-av'
+
 import {
   Demuxer,
   Decoder,
   Encoder,
-  Muxer,
   FilterComplexAPI,
   type EncoderOptions
 } from 'node-av/api'
 
 import {
   AV_PIX_FMT_YUV420P,
+  AV_CODEC_FLAG_GLOBAL_HEADER,
   FF_ENCODER_LIBX264,
   FF_ENCODER_LIBX265,
   FF_ENCODER_LIBVPX_VP8,
   FF_ENCODER_LIBVPX_VP9,
-  FF_THREAD_FRAME
+  FF_THREAD_FRAME,
+  AVCOL_PRI_BT709,
+  AVCOL_PRI_BT470BG,
+  AVCOL_PRI_BT2020,
+  AVCOL_PRI_SMPTE170M,
+  AVCOL_PRI_SMPTE432,
+  AVCOL_TRC_BT709,
+  AVCOL_TRC_SMPTE170M,
+  AVCOL_TRC_LINEAR,
+  AVCOL_TRC_SMPTE2084,
+  AVCOL_TRC_ARIB_STD_B67,
+  AVCOL_TRC_IEC61966_2_1,
+  AVCOL_SPC_BT709,
+  AVCOL_SPC_BT470BG,
+  AVCOL_SPC_BT2020_NCL,
+  AVCOL_SPC_SMPTE170M,
+  AVCOL_SPC_RGB,
+  AVCOL_RANGE_JPEG,
+  AVCOL_RANGE_MPEG
 } from 'node-av/constants'
 
-import { Muxer as FSVMuxer } from './Muxer'
+import type { Packet } from './Packet'
+import { Muxer as FSVMuxer, type MuxOptions } from './Muxer'
 
 const DEFAULT_OUTPUT_CODEC = FF_ENCODER_LIBX264
 const ALPHA_SPLIT_FILTER = (
@@ -137,21 +156,18 @@ async function convert(
   )
 
   const {
-    outputCodec,
     logger
   } = options || {}
 
   logger?.start('Starting conversion')
 
   try {
-    const type = resolveOutputFormat(outputCodec)
     const encoded = await transcode(input, options)
-    const muxed = await FSVMuxer.mux(
-      type,
-      encoded.color,
-      encoded.alpha,
-      encoded.framesCount
-    )
+    const muxed = FSVMuxer.mux(encoded.color, encoded.alpha, {
+      config: encoded.config,
+      codec: encoded.codec,
+      duration: encoded.duration
+    })
 
     if (output) {
       await fs.writeFile(output, muxed)
@@ -169,10 +185,18 @@ async function convert(
   }
 }
 
+interface TranscodeOutput {
+  color: Packet[]
+  alpha?: Packet[]
+  config: VideoDecoderConfig
+  codec: MuxOptions['codec']
+  duration: number
+}
+
 async function transcode(source: string | Buffer, {
   alpha = false,
   ...options
-}: ConvertOptions = {}) {
+}: ConvertOptions = {}): Promise<TranscodeOutput> {
   if (alpha) {
     return transcodeAlpha(source, options)
   }
@@ -205,11 +229,6 @@ async function transcode(source: string | Buffer, {
       throw new Error('No video stream found in input')
     }
 
-    const outputFormat = resolveOutputFormat(outputCodec)
-
-    logger?.info(`Opening output with format ${outputFormat}`)
-    const output = await createOutput(outputFormat)
-
     logger?.info(`Initializing decoder with codec ${inputCodec || '[auto]'}`)
     using decoder = await Decoder.create(
       videoStream,
@@ -219,10 +238,14 @@ async function transcode(source: string | Buffer, {
     logger?.info(`Initializing encoder with codec ${outputCodec}`)
     using encoder = await Encoder.create(
       outputCodec as FFEncoderCodec,
-      resolveEncoderOptions(outputFormat, videoStream, encoderOptions)
+      resolveEncoderOptions(videoStream, encoderOptions)
     )
 
-    output.muxer.addStream(encoder)
+    // Setting AV_CODEC_FLAG_GLOBAL_HEADER causes the encoder to place SPS/PPS
+    // (for H.264/H.265) in the codec context extradata rather than inlining
+    // them in every keyframe.  This is required so that CodecParameters can
+    // later produce the avcC / hvcC description blob used by WebCodecs.
+    encoder.setCodecFlags(AV_CODEC_FLAG_GLOBAL_HEADER)
 
     logger?.info('Initializing filter')
     using filter = FilterComplexAPI.create('[in]format=yuv420p[out]', {
@@ -231,6 +254,8 @@ async function transcode(source: string | Buffer, {
     })
 
     logger?.info('Encoding frames...')
+
+    const packets: Packet[] = []
 
     const processStream = async () => {
       while (true) {
@@ -251,7 +276,14 @@ async function transcode(source: string | Buffer, {
           break
         }
 
-        await output.muxer.writePacket(packet, 0)
+        if (packet.data) {
+          packets.push({
+            data: Buffer.from(packet.data),
+            timestamp: ptsToMicroseconds(packet.pts, videoStream.timeBase),
+            isKeyFrame: packet.isKeyframe
+          })
+        }
+
         packet.free()
       }
     }
@@ -279,15 +311,16 @@ async function transcode(source: string | Buffer, {
     await encoder.encode(null)
     await processStream()
 
-    logger?.debug('Closing output')
-    await output.muxer.close()
+    const config = extractVideoDecoderConfig(encoder)
 
     logger?.success(`Encoding completed`)
 
     return {
-      color: await output.receive(),
+      color: packets,
       alpha: undefined,
-      framesCount
+      config,
+      codec: outputCodecToMuxCodec(outputCodec),
+      duration: streamDurationToMicroseconds(videoStream)
     }
   } catch (error) {
     logger?.error('Encoding failed')
@@ -301,7 +334,7 @@ async function transcodeAlpha(source: string | Buffer, {
   outputCodec = DEFAULT_OUTPUT_CODEC,
   encoder: encoderOptions,
   logger
-}: Exclude<ConvertOptions, 'alpha'> = {}) {
+}: Exclude<ConvertOptions, 'alpha'> = {}): Promise<TranscodeOutput> {
   logger?.start(`Starting encoding`)
 
   try {
@@ -322,15 +355,7 @@ async function transcodeAlpha(source: string | Buffer, {
       throw new Error('No video stream found in input')
     }
 
-    const outputFormat = resolveOutputFormat(outputCodec)
-
-    logger?.info(`Opening color output with format ${outputFormat}`)
-    const colorOutput = await createOutput(outputFormat)
-
-    logger?.info(`Opening alpha output with format ${outputFormat}`)
-    const alphaOutput = await createOutput(outputFormat)
-
-    encoderOptions = resolveEncoderOptions(outputFormat, videoStream, encoderOptions)
+    const resolvedEncoderOptions = resolveEncoderOptions(videoStream, encoderOptions)
 
     logger?.info(`Initializing decoder with codec ${inputCodec || '[auto]'}`)
     using decoder = await Decoder.create(
@@ -341,17 +366,17 @@ async function transcodeAlpha(source: string | Buffer, {
     logger?.info(`Initializing color encoder with codec ${outputCodec}`)
     using colorEncoder = await Encoder.create(
       outputCodec as FFEncoderCodec,
-      encoderOptions
+      resolvedEncoderOptions
     )
 
     logger?.info(`Initializing alpha encoder with codec ${outputCodec}`)
     using alphaEncoder = await Encoder.create(
       outputCodec as FFEncoderCodec,
-      encoderOptions
+      resolvedEncoderOptions
     )
 
-    colorOutput.muxer.addStream(colorEncoder)
-    alphaOutput.muxer.addStream(alphaEncoder)
+    colorEncoder.setCodecFlags(AV_CODEC_FLAG_GLOBAL_HEADER)
+    alphaEncoder.setCodecFlags(AV_CODEC_FLAG_GLOBAL_HEADER)
 
     logger?.info('Initializing filter')
     using filter = FilterComplexAPI.create(ALPHA_SPLIT_FILTER, {
@@ -365,6 +390,9 @@ async function transcodeAlpha(source: string | Buffer, {
     })
 
     logger?.info('Encoding frames')
+
+    const colorPackets: Packet[] = []
+    const alphaPackets: Packet[] = []
 
     const processStream = async () => {
       while (true) {
@@ -396,7 +424,14 @@ async function transcodeAlpha(source: string | Buffer, {
           break
         }
 
-        await colorOutput.muxer.writePacket(packet, 0)
+        if (packet.data) {
+          colorPackets.push({
+            data: Buffer.from(packet.data),
+            timestamp: ptsToMicroseconds(packet.pts, videoStream.timeBase),
+            isKeyFrame: packet.isKeyframe
+          })
+        }
+
         packet.free()
       }
 
@@ -407,7 +442,14 @@ async function transcodeAlpha(source: string | Buffer, {
           break
         }
 
-        await alphaOutput.muxer.writePacket(packet, 0)
+        if (packet.data) {
+          alphaPackets.push({
+            data: Buffer.from(packet.data),
+            timestamp: ptsToMicroseconds(packet.pts, videoStream.timeBase),
+            isKeyFrame: packet.isKeyframe
+          })
+        }
+
         packet.free()
       }
     }
@@ -436,16 +478,16 @@ async function transcodeAlpha(source: string | Buffer, {
     await alphaEncoder.encode(null)
     await processStream()
 
-    logger?.debug('Closing outputs')
-    await colorOutput.muxer.close()
-    await alphaOutput.muxer.close()
+    const config = extractVideoDecoderConfig(colorEncoder)
 
     logger?.success(`Encoding completed`)
 
     return {
-      color: await colorOutput.receive(),
-      alpha: await alphaOutput.receive(),
-      framesCount
+      color: colorPackets,
+      alpha: alphaPackets,
+      config,
+      codec: outputCodecToMuxCodec(outputCodec),
+      duration: streamDurationToMicroseconds(videoStream)
     }
   } catch (error) {
     logger?.error('Encoding failed')
@@ -453,11 +495,205 @@ async function transcodeAlpha(source: string | Buffer, {
   }
 }
 
+/**
+ * Extracts a VideoDecoderConfig from an encoder whose codec context has been
+ * populated with extradata (requires AV_CODEC_FLAG_GLOBAL_HEADER to be set
+ * before encoding begins).
+ *
+ * Reads codedWidth, codedHeight and full color space information from the
+ * encoder's CodecParameters so that the browser-side decoder has complete
+ * metadata regardless of what options the user passed to the converter.
+ */
+function extractVideoDecoderConfig(encoder: Encoder): VideoDecoderConfig {
+  const ctx = encoder.getCodecContext()
+
+  if (!ctx) {
+    throw new Error('Failed to get codec context from encoder')
+  }
+
+  const codecpar = new CodecParameters()
+  codecpar.alloc()
+  codecpar.fromContext(ctx)
+
+  const codec = codecpar.getCodecString()
+  const descriptionBuffer = codecpar.getDecoderConfigurationRecord()
+
+  const colorSpace = extractColorSpace(codecpar)
+
+  const config = {
+    codec: codec!,
+    optimizeForLatency: true,
+    codedWidth: codecpar.width || undefined,
+    codedHeight: codecpar.height || undefined,
+    ...(descriptionBuffer
+      ? { description: new Uint8Array(descriptionBuffer.buffer, descriptionBuffer.byteOffset, descriptionBuffer.byteLength) }
+      : {}
+    ),
+    ...(colorSpace && { colorSpace })
+  } as VideoDecoderConfig
+
+  codecpar.free()
+
+  if (!codec) {
+    throw new Error('Failed to extract codec string from encoder')
+  }
+
+  return config
+}
+
+/**
+ * Maps ffmpeg color parameters to a WebCodecs VideoColorSpaceInit object.
+ *
+ * Only sets properties that are recognized and not unspecified, so that
+ * defaults are left to the browser decoder.
+ */
+function extractColorSpace(
+  codecpar: CodecParameters
+): Record<string, unknown> | undefined {
+  const primaries = mapColorPrimaries(codecpar.colorPrimaries)
+  const transfer = mapTransferCharacteristic(codecpar.colorTrc)
+  const matrix = mapColorMatrix(codecpar.colorSpace)
+  const fullRange = mapColorRange(codecpar.colorRange)
+
+  const colorSpace: Record<string, unknown> = {
+    ...(primaries !== undefined && { primaries }),
+    ...(transfer !== undefined && { transfer }),
+    ...(matrix !== undefined && { matrix }),
+    ...(fullRange !== undefined && { fullRange })
+  }
+
+  return Object.keys(colorSpace).length > 0 ? colorSpace : undefined
+}
+
+/**
+ * Maps an ffmpeg color primaries value to a WebCodecs primaries string.
+ */
+function mapColorPrimaries(value: number): string | undefined {
+  switch (value) {
+    case AVCOL_PRI_BT709:
+      return 'bt709'
+
+    case AVCOL_PRI_BT470BG:
+      return 'bt470bg'
+
+    case AVCOL_PRI_BT2020:
+      return 'bt2020'
+
+    case AVCOL_PRI_SMPTE170M:
+      return 'smpte170m'
+
+    case AVCOL_PRI_SMPTE432:
+      return 'smpte432'
+
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Maps an ffmpeg transfer characteristic value to a WebCodecs transfer string.
+ */
+function mapTransferCharacteristic(value: number): string | undefined {
+  switch (value) {
+    case AVCOL_TRC_BT709:
+      return 'bt709'
+
+    case AVCOL_TRC_IEC61966_2_1:
+      return 'iec61966-2-1'
+
+    case AVCOL_TRC_SMPTE170M:
+      return 'smpte170m'
+
+    case AVCOL_TRC_LINEAR:
+      return 'linear'
+
+    case AVCOL_TRC_SMPTE2084:
+      return 'pq'
+
+    case AVCOL_TRC_ARIB_STD_B67:
+      return 'hlg'
+
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Maps an ffmpeg color space (matrix coefficients) value to a WebCodecs matrix string.
+ */
+function mapColorMatrix(value: number): string | undefined {
+  switch (value) {
+    case AVCOL_SPC_BT709:
+      return 'bt709'
+
+    case AVCOL_SPC_BT470BG:
+      return 'bt470bg'
+
+    case AVCOL_SPC_BT2020_NCL:
+      return 'bt2020-ncl'
+
+    case AVCOL_SPC_SMPTE170M:
+      return 'smpte170m'
+
+    case AVCOL_SPC_RGB:
+      return 'rgb'
+
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Maps an ffmpeg color range value to a WebCodecs fullRange boolean.
+ */
+function mapColorRange(value: number): boolean | undefined {
+  switch (value) {
+    case AVCOL_RANGE_JPEG:
+      return true
+
+    case AVCOL_RANGE_MPEG:
+      return false
+
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Converts a packet PTS (in stream time-base units) to microseconds.
+ */
+function ptsToMicroseconds(
+  pts: bigint,
+  timeBase: { num: number, den: number }
+): number {
+  return Number(pts * BigInt(timeBase.num) * 1_000_000n / BigInt(timeBase.den))
+}
+
+/**
+ * Converts a stream duration (in stream time-base units) to microseconds.
+ * Falls back to 0 if the duration is not available (AV_NOPTS_VALUE).
+ */
+function streamDurationToMicroseconds(stream: Stream): number {
+  // AV_NOPTS_VALUE is the minimum int64 value used by ffmpeg when the
+  // duration is unknown.
+  const AV_NOPTS_VALUE = BigInt('-9223372036854775808')
+  const { duration, timeBase } = stream
+
+  if (duration === AV_NOPTS_VALUE) {
+    return 0
+  }
+
+  return Number(duration * BigInt(timeBase.num) * 1_000_000n / BigInt(timeBase.den))
+}
+
 function resolveEncoderOptions(
-  format: 'mp4' | 'webm',
   stream: Stream,
   encoderOptions?: Partial<EncoderOptions>
 ): EncoderOptions {
+  const format = resolveOutputFormat(
+    (encoderOptions as ConvertOptions | undefined)?.outputCodec
+  )
+
   return {
     threadCount: 0,
     threadType: FF_THREAD_FRAME,
@@ -519,32 +755,25 @@ function resolveOutputFormat(
   }
 }
 
-async function createOutput(format: string) {
-  const tmp = `${os.tmpdir()}/${crypto.randomUUID()}.${format}`
-  const muxer = await Muxer.open(tmp, { format })
+function outputCodecToMuxCodec(
+  codec: ConvertOptions['outputCodec'] = DEFAULT_OUTPUT_CODEC
+): MuxOptions['codec'] {
+  switch (codec) {
+    case FF_ENCODER_LIBX264:
+      return 'h264'
 
-  return {
-    muxer,
-    async receive() {
-      let data: Buffer | undefined
+    case FF_ENCODER_LIBX265:
+      return 'h265'
 
-      try {
-        data = await fs.readFile(tmp)
-      } catch (_) {
+    case FF_ENCODER_LIBVPX_VP8:
+    case 'libvpx-vp8':
+      return 'vp8'
 
-      }
+    case FF_ENCODER_LIBVPX_VP9:
+    case 'libvpx-vp9':
+      return 'vp9'
 
-      try {
-        await fs.unlink(tmp)
-      } catch (_) {
-
-      }
-
-      if (!data) {
-        throw new Error('Failed to read output data')
-      }
-
-      return data
-    }
+    default:
+      throw new Error(`Unsupported output codec "${codec}"`)
   }
 }

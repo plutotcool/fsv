@@ -14,9 +14,7 @@ scrubbing on the web, supporting alpha channel. It has been inspired by the
 
 This repository provides both:
 - **Conversion API**: based on [node-av](https://github.com/seydx/node-av) for
-  encoding using ffmpeg node bindings, and
-  [webcodecs-node](https://github.com/Brooooooklyn/webcodecs-node) for demuxing
-  video frames and infer WebCodecs VideoDecoder config.
+  encoding and config extraction using ffmpeg node bindings.
 - **Decoding and rendering API**: based on the native WebCodecs and WebGL2 APIs.
 
 ## Installation

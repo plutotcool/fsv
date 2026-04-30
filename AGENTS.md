@@ -8,7 +8,7 @@ The library ships two distinct APIs:
 
 | API | Environment | Purpose |
 |-----|-------------|---------|
-| **Conversion** | Node.js | Converts any video file to `.fsv` using ffmpeg (`node-av`) and WebCodecs bindings (`@napi-rs/webcodecs`) |
+| **Conversion** | Node.js | Converts any video file to `.fsv` using ffmpeg (`node-av`) for encoding and config extraction |
 | **Decoding / Rendering** | Browser | Loads, demuxes, decodes, and WebGL2-renders `.fsv` files using native browser WebCodecs and WebGL2 APIs |
 
 The package is published to the GitHub Packages registry (`https://npm.pkg.github.com`) under the `@plutotcool` scope.
@@ -29,8 +29,9 @@ fsv/
 │       ├── FSV.ts        # FSV & FSVTrack TypeScript interfaces
 │       ├── Video.ts      # Shared Video interface (seek/progress/set/width/height/duration/length)
 │       ├── Manifest.ts   # Binary manifest serialization/deserialization (compact flat number arrays)
-│       ├── Converter.ts  # Node.js-only: ffmpeg transcode → FSV (uses node-av + FSVMuxer)
-│       ├── Muxer.ts      # Node.js-only: pack encoded mp4/webm data into .fsv binary
+│       ├── Converter.ts  # Node.js-only: ffmpeg transcode → FSV (collects packets in-memory, extracts config via CodecParameters)
+│       ├── Muxer.ts      # Node.js-only: pack encoded Packet[] into .fsv binary (Annex B → AVCC for H.264/H.265)
+│       ├── Packet.ts     # Shared Packet interface (raw encoded frame with data/timestamp/isKeyFrame)
 │       ├── Demuxer.ts    # Browser-compatible: unpack .fsv binary into FSV objects (sync + streaming)
 │       ├── Decoder.ts    # Browser: coordinate color+alpha TrackDecoders, invoke user callback
 │       ├── TrackDecoder.ts # Browser: WebCodecs VideoDecoder wrapper for a single FSV track
@@ -145,14 +146,21 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 - Supported output codecs: `libx264`, `libx265`, `libvpx-vp8`, `libvpx-vp9`
 - Default output codec: `libx264` → mp4 container
 - Default encoder settings: `crf=20`, `gopSize=5`, `maxBFrames=0`, `threadType=FF_THREAD_FRAME`
-- Writes intermediate encoded video to a temp file in `os.tmpdir()`, then reads it back as a Buffer
+- Sets `AV_CODEC_FLAG_GLOBAL_HEADER` on each encoder so SPS/PPS go into extradata (not inlined in keyframes)
+- Collects raw packets in memory as `Packet[]` — no temp files or intermediate container
+- Extracts `VideoDecoderConfig` from encoder's `CodecParameters` after encoding:
+  - `codec` string via `getCodecString()` (RFC 6381 format)
+  - `description` via `getDecoderConfigurationRecord()` (avcC/hvcC for H.264/H.265)
+  - `codedWidth`, `codedHeight` from encoder dimensions
+  - `colorSpace` mapped from ffmpeg color constants (primaries, transfer, matrix, fullRange)
+  - `optimizeForLatency: true` baked in for scrubbing performance
 
 ### Muxer (Node.js only — `src/core/Muxer.ts`)
 
-- Accepts mp4 or webm `Buffer` data (from the Converter)
-- Uses `@napi-rs/webcodecs` (`Mp4Demuxer` / `WebMDemuxer`) to demux encoded chunks
-- Extracts `EncodedVideoChunk` objects and builds the manifest
-- Packs everything into the FSV binary format
+- Accepts `Packet[]` arrays from Converter (no container demuxing)
+- Converts Annex B → AVCC bitstream for H.264/H.265 packets (VP8/VP9 pass through unchanged)
+- Packs packets and manifest directly into FSV binary format
+- Reads width/height from `config.codedWidth`/`config.codedHeight` for manifest serialization
 
 ### Demuxer (browser-compatible — `src/core/Demuxer.ts`)
 
@@ -172,7 +180,7 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 
 - Wraps the browser `VideoDecoder` API
 - Smart seeking: if the target frame is a key frame or sequential from current, decodes minimally; otherwise resets the decoder and replays from the nearest key frame (`frame.keyIndex`)
-- Calls `VideoDecoder.isConfigSupported()` with multiple candidate configs (with/without `optimizeForLatency`) to find the best supported config
+- Config resolution is simple: merges `track.config` (from manifest) with optional user override and validates with single `isConfigSupported()` call — throws immediately if unsupported
 - On error, logs `'FSV'` + error to console
 
 ### Renderer (`src/core/Renderer.ts`)
@@ -193,9 +201,7 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 
 3. **Alpha streaming not supported**: `Demuxer.demuxStream()` throws `'Streaming videos with alpha channel is not supported'` if the FSV file has an alpha track. Use `Demuxer.demux()` (non-streaming) for alpha videos.
 
-4. **Muxer frame count race condition**: `@napi-rs/webcodecs` demuxers may resolve before all frames have been emitted. The `Muxer.mux()` function accepts a `framesCount` parameter (provided by the Converter) and polls until that count is reached (up to 10 seconds), falling back to a 500 ms delay if not provided.
-
-5. **Native module builds**: `pnpm-workspace.yaml` explicitly sets `allowBuilds` for `@seydx/node-av-darwin-arm64` and `node-av` to allow native addon compilation.
+4. **Native module builds**: `pnpm-workspace.yaml` explicitly sets `allowBuilds` for `@seydx/node-av-darwin-arm64` and `node-av` to allow native addon compilation.
 
 ---
 
@@ -205,7 +211,7 @@ The package uses a detailed exports map in `package.json`. Each core class has i
 
 - `.` → `src/index.ts` (browser-side: `Renderer`, `Decoder`, `Demuxer`, `FSV` types)
 - `./cli` / `./cli/convert` / `./cli/main` → CLI modules
-- `./core/Converter`, `./core/Muxer`, etc. → individual core modules
+- `./core/Muxer`, `./core/Packet`, etc. → individual core modules
 
 This means `import { Converter } from '@plutotcool/fsv/core/Converter'` works in Node.js but `Converter` is not included in the browser bundle.
 

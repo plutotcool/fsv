@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@napi-rs/webcodecs':
-        specifier: ^1.3.1
-        version: 1.3.1
       citty:
         specifier: ^0.2.2
         version: 0.2.2
@@ -320,73 +317,6 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
-
-  '@napi-rs/webcodecs-darwin-arm64@1.3.1':
-    resolution: {integrity: sha512-62cV3BzqdeY60OSasRgJxOsjdp6Zq6F7Bqn1kxfmReQ/UYQFpamSQzDeD0gV6YX86uqb6tnUk/2j3FOSm+7bPQ==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@napi-rs/webcodecs-darwin-x64@1.3.1':
-    resolution: {integrity: sha512-/PTQ+2KLtAJqyQeLN8x//cucyW83fet9X5zQ35YOSaZpV6sLa3tRxBTSYCGviXaMVH+1zajEM1nCWkSyokUh3A==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@napi-rs/webcodecs-linux-arm-gnueabihf@1.3.1':
-    resolution: {integrity: sha512-fm7c+Pos/+/javJFgR/LkWtz7wskhwnCdO188tmwna1USxSx5FouwqYd2qRBE1u/ab45x1FXZo8RTKHfMUro1w==}
-    engines: {node: '>= 10'}
-    cpu: [arm]
-    os: [linux]
-
-  '@napi-rs/webcodecs-linux-arm64-gnu@1.3.1':
-    resolution: {integrity: sha512-nvcyBiAux7jrVKuo73cbGwMbMNZBiNS7ltbCI30qZiCPVSStZCXE0lmHk3RrRgYP7/1guxP6JAewEEe6zt4eIw==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@napi-rs/webcodecs-linux-arm64-musl@1.3.1':
-    resolution: {integrity: sha512-QDe5uqCbsN5Wu7r3OHpp1Jqy69jALfHDxS3OiygSnhikqaCsZWPyRpY8Lt2bVFNmh0cGKy1xAjJby0dhrVMgvA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@napi-rs/webcodecs-linux-x64-gnu@1.3.1':
-    resolution: {integrity: sha512-zgobHa+DEO9DD6J3CJVRNiQj5S3nh7Oq+UJa5JfPst9y3XYnOGneyFFeI8mt6Iyx3dls6FxzMRYEt0WiN+pKUg==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@napi-rs/webcodecs-linux-x64-musl@1.3.1':
-    resolution: {integrity: sha512-u4OiEEnMAj38KxFM0jDmFJu2DQXY/13ycRyHK96a4CYVQTFGSpxv7vAJOqvokmgaPSJrxzp9RBfnSqnji2Bj3w==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@napi-rs/webcodecs-win32-arm64-msvc@1.3.1':
-    resolution: {integrity: sha512-Jtqxw6mKtLHrJD+uJU5Sp29Ki32QtURDrJA4uRLPOPIwJnnDkgB+6w11f5CDT+C56YLUnf1D5/fpwA7pf05WZA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@napi-rs/webcodecs-win32-x64-msvc@1.3.1':
-    resolution: {integrity: sha512-QRZ2H5UVBHDjyl3tNdVsLhrnxke5bGdHjMjNnBgt4sZB4T/0GDYZWpC9fmK0Mfcsqvo4c9F0c8PTAwPPB4g89A==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [win32]
-
-  '@napi-rs/webcodecs@1.3.1':
-    resolution: {integrity: sha512-LRYOo281aPnsK2MIQ5t/VSnxw/q1kXOhLL4hdRqw2SV6pP3liaKpx7UoN2RdlWzSy1A6daV1IgvOFk9zcVGQQA==}
-    engines: {node: '>= 10'}
-    peerDependencies:
-      '@napi-rs/canvas': '>=0.1.0'
-    peerDependenciesMeta:
-      '@napi-rs/canvas':
-        optional: true
 
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
@@ -1818,45 +1748,6 @@ snapshots:
       '@emnapi/runtime': 1.9.2
       '@tybys/wasm-util': 0.10.1
     optional: true
-
-  '@napi-rs/webcodecs-darwin-arm64@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-darwin-x64@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-linux-arm-gnueabihf@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-linux-arm64-gnu@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-linux-arm64-musl@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-linux-x64-gnu@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-linux-x64-musl@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-win32-arm64-msvc@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs-win32-x64-msvc@1.3.1':
-    optional: true
-
-  '@napi-rs/webcodecs@1.3.1':
-    optionalDependencies:
-      '@napi-rs/webcodecs-darwin-arm64': 1.3.1
-      '@napi-rs/webcodecs-darwin-x64': 1.3.1
-      '@napi-rs/webcodecs-linux-arm-gnueabihf': 1.3.1
-      '@napi-rs/webcodecs-linux-arm64-gnu': 1.3.1
-      '@napi-rs/webcodecs-linux-arm64-musl': 1.3.1
-      '@napi-rs/webcodecs-linux-x64-gnu': 1.3.1
-      '@napi-rs/webcodecs-linux-x64-musl': 1.3.1
-      '@napi-rs/webcodecs-win32-arm64-msvc': 1.3.1
-      '@napi-rs/webcodecs-win32-x64-msvc': 1.3.1
 
   '@noble/curves@1.9.7':
     dependencies:
