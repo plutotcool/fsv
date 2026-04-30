@@ -8,7 +8,7 @@ The library ships two distinct APIs:
 
 | API | Environment | Purpose |
 |-----|-------------|---------|
-| **Conversion** | Node.js | Converts any video file to `.fsv` using ffmpeg (`node-av`) and WebCodecs bindings (`@napi-rs/webcodecs`) |
+| **Conversion** | Node.js | Converts any video file to `.fsv` using ffmpeg (`node-av`) for encoding and config extraction |
 | **Decoding / Rendering** | Browser | Loads, demuxes, decodes, and WebGL2-renders `.fsv` files using native browser WebCodecs and WebGL2 APIs |
 
 The package is published to the GitHub Packages registry (`https://npm.pkg.github.com`) under the `@plutotcool` scope.
@@ -29,8 +29,9 @@ fsv/
 │       ├── FSV.ts        # FSV & FSVTrack TypeScript interfaces
 │       ├── Video.ts      # Shared Video interface (seek/progress/set/width/height/duration/length)
 │       ├── Manifest.ts   # Binary manifest serialization/deserialization (compact flat number arrays)
-│       ├── Converter.ts  # Node.js-only: ffmpeg transcode → FSV (uses node-av + FSVMuxer)
-│       ├── Muxer.ts      # Node.js-only: pack encoded mp4/webm data into .fsv binary
+│       ├── Converter.ts  # Node.js-only: ffmpeg transcode → FSV (collects packets in-memory, extracts config via CodecParameters)
+│       ├── Muxer.ts      # Node.js-only: pack encoded Packet[] into .fsv binary (Annex B → AVCC for H.264/H.265)
+│       ├── Packet.ts     # Shared Packet interface (raw encoded frame with data/timestamp/isKeyFrame)
 │       ├── Demuxer.ts    # Browser-compatible: unpack .fsv binary into FSV objects (sync + streaming)
 │       ├── Decoder.ts    # Browser: coordinate color+alpha TrackDecoders, invoke user callback
 │       ├── TrackDecoder.ts # Browser: WebCodecs VideoDecoder wrapper for a single FSV track
@@ -39,13 +40,26 @@ fsv/
 │       └── shaders/
 │           ├── renderer.vert  # GLSL vertex shader (imported as string via tsdown loader)
 │           └── renderer.frag  # GLSL fragment shader (#define ALPHA 1 injected for alpha videos)
+├── tests/
+│   ├── fixtures/              # Small video files used as test inputs
+│   │   ├── input-h264.mp4         # 5-frame 320×240, H.264/MP4, no alpha
+│   │   ├── input-vp9-alpha.webm   # 5-frame 320×240, VP9/WebM, alpha
+│   │   └── input-prores444.mov    # 5-frame 320×240, ProRes 4444/MOV, alpha
+│   ├── polyfills/
+│   │   └── EncodedVideoChunk.ts   # Minimal WebCodecs polyfill for Node.js
+│   ├── setup.ts               # Vitest global setup — imports polyfills
+│   ├── Manifest.test.ts
+│   ├── Muxer.test.ts
+│   ├── Demuxer.test.ts
+│   └── Converter.test.ts
 ├── @types/
 │   └── shaders.d.ts      # Module declarations for *.vert and *.frag text imports
 ├── demo/                 # Vite demo app (browser-side usage showcase)
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml        # PR checks: typecheck + build
-│       └── release.yml   # Push to main: build + changelogen release + npm publish
+│       ├── ci.yml        # PR checks: typecheck + lint + build + test (parallel jobs)
+│       └── release.yml   # Dispatch: test + build + changelogen release + npm publish
+├── vitest.config.ts      # Test runner config (include, environment, setupFiles)
 ├── tsconfig.json         # strict, ESNext, Bundler resolution, path aliases (~/→src/, ~~/→root/)
 ├── tsdown.config.ts      # Build config: unbundle, ESM+CJS, dts, .vert/.frag as text
 ├── package.json          # Scripts, exports map, bin entry, peerDeps, publishConfig
@@ -89,6 +103,9 @@ pnpm install
 # Type-check (runs tsc --noEmit)
 pnpm typecheck
 
+# Run tests (Vitest)
+pnpm test
+
 # Build the package (tsdown → dist/)
 pnpm build
 
@@ -110,12 +127,38 @@ pnpm release
 
 ## CI/CD Workflows
 
-- **`ci.yml`** — Triggered on PRs to `main`. Runs two parallel jobs:
+- **`ci.yml`** — Triggered on PRs to `main`. Runs four parallel jobs:
   1. **Typecheck** (`pnpm typecheck`)
-  2. **Build** (`pnpm build`)
-- **`release.yml`** — Triggered on push to `main`. Builds the package and runs `pnpm release` (changelogen) to publish to `https://npm.pkg.github.com`.
+  2. **Lint** (`pnpm lint`)
+  3. **Build** (`pnpm build`)
+  4. **Test** (`pnpm test`)
+- **`release.yml`** — Manual dispatch. Runs `pnpm test`, then `pnpm build`, then `pnpm release` (changelogen) to publish to `https://npm.pkg.github.com`.
 
-Always ensure both `pnpm typecheck` and `pnpm build` pass before merging.
+Always ensure `pnpm typecheck`, `pnpm test`, and `pnpm build` all pass before merging.
+
+---
+
+## Testing
+
+Tests live in `tests/` and are run with Vitest (`pnpm test`). The suite covers four modules: `Manifest`, `Muxer`, `Demuxer`, and `Converter`.
+
+### Fixtures
+
+| File | Codec | Alpha |
+|------|-------|-------|
+| `tests/fixtures/input-h264.mp4` | H.264 / MP4 | No |
+| `tests/fixtures/input-vp9-alpha.webm` | VP9 / WebM | Yes |
+| `tests/fixtures/input-prores444.mov` | ProRes 4444 / MOV | Yes |
+
+### EncodedVideoChunk polyfill
+
+`tests/polyfills/EncodedVideoChunk.ts` is a minimal Node.js polyfill for the browser WebCodecs `EncodedVideoChunk` class. It implements the constructor, `type`, `timestamp`, `byteLength`, and `copyTo()`. It is imported in `tests/setup.ts` which Vitest loads as `setupFiles` before any test.
+
+### Test conventions
+
+- No section header banner comments in test files
+- Utility functions and data constants must be placed **after** all `describe` blocks at the end of the file
+- Tests validate parsed output (manifests, frames) — not raw binary byte hashes
 
 ---
 
@@ -145,14 +188,21 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 - Supported output codecs: `libx264`, `libx265`, `libvpx-vp8`, `libvpx-vp9`
 - Default output codec: `libx264` → mp4 container
 - Default encoder settings: `crf=20`, `gopSize=5`, `maxBFrames=0`, `threadType=FF_THREAD_FRAME`
-- Writes intermediate encoded video to a temp file in `os.tmpdir()`, then reads it back as a Buffer
+- Sets `AV_CODEC_FLAG_GLOBAL_HEADER` on each encoder so SPS/PPS go into extradata (not inlined in keyframes)
+- Collects raw packets in memory as `Packet[]` — no temp files or intermediate container
+- Extracts `VideoDecoderConfig` from encoder's `CodecParameters` after encoding:
+  - `codec` string via `getCodecString()` (RFC 6381 format)
+  - `description` via `getDecoderConfigurationRecord()` (avcC/hvcC for H.264/H.265)
+  - `codedWidth`, `codedHeight` from encoder dimensions
+  - `colorSpace` mapped from ffmpeg color constants (primaries, transfer, matrix, fullRange)
+  - `optimizeForLatency: true` baked in for scrubbing performance
 
 ### Muxer (Node.js only — `src/core/Muxer.ts`)
 
-- Accepts mp4 or webm `Buffer` data (from the Converter)
-- Uses `@napi-rs/webcodecs` (`Mp4Demuxer` / `WebMDemuxer`) to demux encoded chunks
-- Extracts `EncodedVideoChunk` objects and builds the manifest
-- Packs everything into the FSV binary format
+- Accepts `Packet[]` arrays from Converter (no container demuxing)
+- Converts Annex B → AVCC bitstream for H.264/H.265 packets (VP8/VP9 pass through unchanged)
+- Packs packets and manifest directly into FSV binary format
+- Reads width/height from `config.codedWidth`/`config.codedHeight` for manifest serialization
 
 ### Demuxer (browser-compatible — `src/core/Demuxer.ts`)
 
@@ -172,7 +222,7 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 
 - Wraps the browser `VideoDecoder` API
 - Smart seeking: if the target frame is a key frame or sequential from current, decodes minimally; otherwise resets the decoder and replays from the nearest key frame (`frame.keyIndex`)
-- Calls `VideoDecoder.isConfigSupported()` with multiple candidate configs (with/without `optimizeForLatency`) to find the best supported config
+- Config resolution is simple: merges `track.config` (from manifest) with optional user override and validates with single `isConfigSupported()` call — throws immediately if unsupported
 - On error, logs `'FSV'` + error to console
 
 ### Renderer (`src/core/Renderer.ts`)
@@ -193,9 +243,7 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 
 3. **Alpha streaming not supported**: `Demuxer.demuxStream()` throws `'Streaming videos with alpha channel is not supported'` if the FSV file has an alpha track. Use `Demuxer.demux()` (non-streaming) for alpha videos.
 
-4. **Muxer frame count race condition**: `@napi-rs/webcodecs` demuxers may resolve before all frames have been emitted. The `Muxer.mux()` function accepts a `framesCount` parameter (provided by the Converter) and polls until that count is reached (up to 10 seconds), falling back to a 500 ms delay if not provided.
-
-5. **Native module builds**: `pnpm-workspace.yaml` explicitly sets `allowBuilds` for `@seydx/node-av-darwin-arm64` and `node-av` to allow native addon compilation.
+4. **Native module builds**: `pnpm-workspace.yaml` explicitly sets `allowBuilds` for `@seydx/node-av-darwin-arm64` and `node-av` to allow native addon compilation.
 
 ---
 
@@ -205,7 +253,7 @@ The package uses a detailed exports map in `package.json`. Each core class has i
 
 - `.` → `src/index.ts` (browser-side: `Renderer`, `Decoder`, `Demuxer`, `FSV` types)
 - `./cli` / `./cli/convert` / `./cli/main` → CLI modules
-- `./core/Converter`, `./core/Muxer`, etc. → individual core modules
+- `./core/Muxer`, `./core/Packet`, etc. → individual core modules
 
 This means `import { Converter } from '@plutotcool/fsv/core/Converter'` works in Node.js but `Converter` is not included in the browser bundle.
 
@@ -252,6 +300,25 @@ Use `feat!:` (with `!`) to indicate a **breaking change**.
 | `chore:` (other) | `Type: Repository` |
 | `refactor:` or `perf:` | `Type: Enhancement` |
 | any `!` (breaking change) | add `Type: Breaking Change` in addition to the primary label |
+
+### Mandatory Confirmation Gate for Git Operations
+
+**CRITICAL**: Before running ANY `git commit` or `git push` command, you MUST:
+
+1. **STOP** and output the proposed action as a standalone block:
+   - Changed files list (from `git status --short`)
+   - Proposed commit message (for commit)
+   - Target branch (for push)
+
+2. **WAIT** for explicit user confirmation (e.g. "yes", "go ahead", "approved").
+
+3. **NEVER** chain `git add`, `git commit`, and `git push` in a single Bash call
+   or single message. Commit and push must be separate operations, each with
+   its own confirmation.
+
+**Even if the user says "please commit" or "go ahead", you must show the
+proposal first and wait for confirmation before executing.** The user's
+implicit trust is not explicit confirmation of the specific change.
 
 ---
 

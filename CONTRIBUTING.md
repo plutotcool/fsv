@@ -48,8 +48,17 @@ fsv/
 │   ├── cli/       # CLI entry points and commands
 │   ├── core/      # Core library (Converter, Decoder, Demuxer, Muxer, Renderer, …)
 │   └── index.ts   # Public browser-side exports
+├── tests/
+│   ├── fixtures/  # Small video fixture files used by tests
+│   ├── polyfills/ # Node.js polyfills for browser-only APIs (e.g. EncodedVideoChunk)
+│   ├── setup.ts   # Vitest global setup (imports polyfills)
+│   ├── Manifest.test.ts
+│   ├── Muxer.test.ts
+│   ├── Demuxer.test.ts
+│   └── Converter.test.ts
 ├── @types/        # Internal type declarations for shader modules (*.vert, *.frag)
 ├── demo/          # Demo application source
+├── vitest.config.ts
 └── tsdown.config.ts
 ```
 
@@ -70,19 +79,25 @@ inspired by [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/).
 
 2. Make your changes.
 
-3. Build the package:
+3. Run the tests:
+
+   ```shell
+   pnpm test
+   ```
+
+4. Build the package:
 
    ```shell
    pnpm build
    ```
 
-4. Test your changes using the CLI directly via the `fsv` script:
+5. Test your changes using the CLI directly via the `fsv` script:
 
    ```shell
    pnpm fsv convert --help
    ```
 
-5. Run the demo to verify browser-side changes:
+6. Run the demo to verify browser-side changes:
 
    ```shell
    pnpm dev
@@ -117,6 +132,28 @@ The codebase is written in TypeScript and follows these conventions:
 - **`import type`** for type-only imports
 - **JSDoc** comments on public API members
 
+## Testing
+
+Tests are written with [Vitest](https://vitest.dev/) and live in the `tests/` directory.
+
+```shell
+pnpm test
+```
+
+### Test fixtures
+
+Small video files used as inputs are stored in `tests/fixtures/`:
+
+| File | Codec | Alpha |
+|------|-------|-------|
+| `input-h264.mp4` | H.264 / MP4 | No |
+| `input-vp9-alpha.webm` | VP9 / WebM | Yes |
+| `input-prores444.mov` | ProRes 4444 / MOV | Yes |
+
+### EncodedVideoChunk polyfill
+
+Node.js does not implement the WebCodecs API. `tests/polyfills/EncodedVideoChunk.ts` provides a minimal polyfill so that `Demuxer` (which calls `new EncodedVideoChunk(...)`) can be exercised in Node.js. It is loaded automatically via `tests/setup.ts` (configured as `setupFiles` in `vitest.config.ts`).
+
 ## Opening a Pull Request
 
 1. Push your branch to your fork:
@@ -129,7 +166,7 @@ The codebase is written in TypeScript and follows these conventions:
 
 3. Provide a clear description of *what* your change does and *why* it is needed. Link to any related issues.
 
-4. Ensure the build passes before requesting a review.
+4. Ensure the tests and build pass before requesting a review.
 
 ## Reporting Issues
 

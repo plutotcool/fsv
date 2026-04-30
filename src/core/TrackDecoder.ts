@@ -63,7 +63,7 @@ export class TrackDecoder implements Video {
   /**
    * Loads a fsv video track from the given demuxed data.
    *
-   * @param data The demuxed fsv track to load.
+   * @param track The demuxed fsv track to load.
    * @param config An optional VideoDecoderConfig to override config specified in the fsv track data.
    *
    * @returns A promise that resolves when the track is loaded and the decoder is configured.
@@ -156,40 +156,15 @@ export class TrackDecoder implements Video {
     track: FSVTrack,
     config?: Partial<VideoDecoderConfig>
   ): Promise<VideoDecoderConfig> {
-    let resolved: VideoDecoderConfig | undefined
+    const resolvedConfig = { ...track.config, ...config }
 
-    const common: VideoDecoderConfig = {
-      codedWidth: track.width,
-      codedHeight: track.height,
-      colorSpace: {
-        primaries: 'bt709',
-        transfer: 'bt709',
-        matrix: 'bt709',
-        fullRange: false
-      },
-      ...track.config
+    const { supported } = await VideoDecoder.isConfigSupported(resolvedConfig)
+
+    if (!supported) {
+      console.error('FSV', resolvedConfig)
+      throw new Error('Unsupported decoder config')
     }
 
-    const candidates = [
-      { ...common, optimizeForLatency: true, ...config },
-      { ...common, ...config },
-      { ...common, optimizeForLatency: true },
-      common
-    ]
-
-    for (const candidate of candidates) {
-      const support = await VideoDecoder.isConfigSupported(candidate)
-
-      if (support.supported) {
-        resolved = candidate
-        break
-      }
-    }
-
-    if (!resolved) {
-      throw new Error('Unsupported decoder config');
-    }
-
-    return resolved
+    return resolvedConfig
   }
 }

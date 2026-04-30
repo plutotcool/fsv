@@ -22,7 +22,8 @@
     "lint": "eslint src",
     "release": "changelogen --release --push",
     "dev": "vite -c demo/vite.config.ts",
-    "fsv": "tsx src/cli"
+    "fsv": "tsx src/cli",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
@@ -32,10 +33,10 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.59.0",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "vitest": "^4.1.5"
   },
   "dependencies": {
-    "@napi-rs/webcodecs": "^1.3.1",
     "citty": "^0.2.2",
     "consola": "^3.4.2",
     "node-av": "^5.2.3"
@@ -87,6 +88,10 @@
     "./core/Muxer": {
       "import": "./dist/core/Muxer.mjs",
       "require": "./dist/core/Muxer.cjs"
+    },
+    "./core/Packet": {
+      "import": "./dist/core/Packet.mjs",
+      "require": "./dist/core/Packet.cjs"
     },
     "./core/Renderer": {
       "import": "./dist/core/Renderer.mjs",

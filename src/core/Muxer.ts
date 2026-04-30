@@ -1,20 +1,33 @@
-import {
-  WebMDemuxer,
-  Mp4Demuxer,
-  type EncodedVideoChunk
-} from '@napi-rs/webcodecs'
-
+import type { Packet } from './Packet'
 import { stringifyManifest, type ManifestFrame } from './Manifest'
 
-const DEMUXERS = {
-  mp4: Mp4Demuxer,
-  webm: WebMDemuxer
-}
-
 /**
- * The supported video file types that can be muxed into fsv format.
+ * Options for muxing raw packets into fsv format.
  */
-export type MuxerType = keyof typeof DEMUXERS
+export interface MuxOptions {
+  /**
+   * The VideoDecoderConfig used by the browser-side decoder.
+   *
+   * The `codec` string and optional `description` (avcC / hvcC box) are
+   * obtained from the encoder's CodecParameters after encoding is complete.
+   * The `codedWidth`, `codedHeight` and `colorSpace` are also populated
+   * from the encoder so that the browser-side decoder has complete metadata.
+   */
+  config: VideoDecoderConfig
+
+  /**
+   * The output codec identifier.
+   *
+   * Used to decide whether Annex B → AVCC conversion is required.
+   * H.264 and H.265 packets require conversion; VP8 and VP9 do not.
+   */
+  codec: 'h264' | 'h265' | 'vp8' | 'vp9'
+
+  /**
+   * Total duration of the video in microseconds.
+   */
+  duration: number
+}
 
 /**
  * Muxes to fsv format.
@@ -24,30 +37,30 @@ export const Muxer = {
 }
 
 /**
- * Muxes video into fsv from mp4 or webm data.
+ * Muxes raw encoded video packets into fsv format.
  *
- * @param type The type of the input video data.
- * @param data The video data to mux.
- * @param alpha Optional alpha video data to mux.
- * @param framesCount Optional number of frames in the video. Used to mitigate
- *                    the issue of some demuxers resolving before having
- *                    outputted all frames.
+ * For H.264 and H.265, each packet's Annex B bitstream is converted to AVCC
+ * format (4-byte big-endian length prefixes) before being packed. VP8 and VP9
+ * packets are stored as-is.
  *
- * @return A promise that resolves to a Buffer containing the muxed fsv data.
+ * @param packets The encoded color (or only) track packets.
+ * @param alphaPackets Optional encoded alpha track packets.
+ * @param options Mux options including VideoDecoderConfig and duration.
+ *
+ * @returns A Buffer containing the muxed fsv data.
  */
-async function mux(
-  type: MuxerType,
-  data: Buffer,
-  alpha?: Buffer,
-  framesCount?: number
-) {
-  const colorBuffer = await muxTrack(type, data, framesCount)
+function mux(
+  packets: Packet[],
+  alphaPackets: Packet[] | undefined,
+  options: MuxOptions
+): Buffer {
+  const colorBuffer = muxTrack(packets, options)
 
-  if (!alpha) {
+  if (!alphaPackets) {
     return colorBuffer
   }
 
-  const alphaBuffer = await muxTrack(type, alpha, framesCount)
+  const alphaBuffer = muxTrack(alphaPackets, options)
   const headerBuffer = Buffer.alloc(4)
 
   headerBuffer.writeUInt32LE(colorBuffer.byteLength + 4)
@@ -59,84 +72,120 @@ async function mux(
   ])
 }
 
-async function muxTrack(
-  type: MuxerType,
-  data: Buffer,
-  framesCount?: number
-): Promise<Buffer> {
+function muxTrack(packets: Packet[], {
+  config,
+  codec,
+  duration
+}: MuxOptions): Buffer {
+  const needsConversion = codec === 'h264' || codec === 'h265'
+
   const chunks: Buffer[] = []
   const frames: ManifestFrame[] = []
-  const demuxerInit = {
-    error: (error: Error) => console.error(error),
-    videoOutput: (chunk: EncodedVideoChunk) => {
-      const buffer = Buffer.alloc(chunk.byteLength)
-      const previous = frames[frames.length - 1]
 
-      chunk.copyTo(buffer)
-      chunks.push(buffer)
-      frames.push({
-        offset: previous ? previous.offset + previous.byteLength : 0,
-        byteLength: chunk.byteLength,
-        timestamp: chunk.timestamp,
-        type: chunk.type
-      })
-    }
+  for (const packet of packets) {
+    const data = needsConversion
+      ? Buffer.from(annexBToAVCC(packet.data))
+      : packet.data
+
+    const previous = frames[frames.length - 1]
+
+    chunks.push(data)
+    frames.push({
+      offset: previous ? previous.offset + previous.byteLength : 0,
+      byteLength: data.byteLength,
+      timestamp: packet.timestamp,
+      type: packet.isKeyFrame ? 'key' : 'delta'
+    })
   }
-
-  if (!(type in DEMUXERS)) {
-    throw new Error(`Unsupported mux type "${type}"`)
-  }
-
-  const demuxer = new DEMUXERS[type](demuxerInit)
-
-  await demuxer.loadBuffer(data)
-
-  const track = demuxer.tracks.find(track => track.trackType === 'video')
-
-  if (!track) {
-    throw new Error('No video track found')
-  }
-
-  demuxer.selectVideoTrack(track.index)
-  await demuxer.demuxAsync()
-
-  await new Promise<void>((resolve) => {
-    if (!framesCount) {
-      setTimeout(resolve, 500)
-      return
-    }
-
-    if (frames.length >= framesCount) {
-      resolve()
-    }
-
-    const start = Date.now()
-
-    const interval = setInterval(() => {
-      if (frames.length >= framesCount || Date.now() - start > 10000) {
-        clearInterval(interval)
-        resolve()
-      }
-    }, 10)
-  })
 
   const chunksBuffer = Buffer.concat(chunks)
   const headerBuffer = Buffer.alloc(8)
   const manifestBuffer = Buffer.from(stringifyManifest({
-    config: demuxer.videoDecoderConfig!,
-    width: track.codedWidth!,
-    height: track.codedHeight!,
-    duration: demuxer.duration!,
+    config,
+    width: config.codedWidth!,
+    height: config.codedHeight!,
+    duration,
     frames
   }))
 
   headerBuffer.writeUInt32LE(manifestBuffer.byteLength, 4)
-
-  demuxer.close()
 
   return Buffer.concat([
     headerBuffer,
     manifestBuffer,
     chunksBuffer
   ])
+}
+
+/**
+ * Converts an Annex B bitstream to AVCC format.
+ *
+ * Annex B uses start codes (0x00 0x00 0x00 0x01 or 0x00 0x00 0x01) as NAL
+ * unit delimiters. AVCC replaces each start code with a 4-byte big-endian NAL
+ * unit length prefix, which is the format expected by WebCodecs for H.264 and
+ * H.265.
+ *
+ * VP8 and VP9 bitstreams do not use start codes and should be passed through
+ * unchanged — do not call this function for those codecs.
+ *
+ * @param data The Annex B bitstream buffer.
+ * @returns A new buffer containing the equivalent AVCC-formatted data.
+ */
+function annexBToAVCC(data: Uint8Array): Uint8Array {
+  const nalDataOffset: number[] = []
+  const nalCodeLen: number[] = []
+
+  let i = 0
+
+  while (i < data.length - 2) {
+    if (data[i] === 0x00 && data[i + 1] === 0x00) {
+      if (i + 3 < data.length && data[i + 2] === 0x00 && data[i + 3] === 0x01) {
+        nalDataOffset.push(i + 4)
+        nalCodeLen.push(4)
+        i += 4
+        continue
+      }
+
+      if (data[i + 2] === 0x01) {
+        nalDataOffset.push(i + 3)
+        nalCodeLen.push(3)
+        i += 3
+        continue
+      }
+    }
+
+    i++
+  }
+
+  if (nalDataOffset.length === 0) {
+    return data
+  }
+
+  let totalSize = 0
+
+  for (let n = 0; n < nalDataOffset.length; n++) {
+    const end = n + 1 < nalDataOffset.length
+      ? nalDataOffset[n + 1] - nalCodeLen[n + 1]
+      : data.length
+
+    totalSize += 4 + (end - nalDataOffset[n])
+  }
+
+  const output = new Uint8Array(totalSize)
+  const view = new DataView(output.buffer)
+  let offset = 0
+
+  for (let n = 0; n < nalDataOffset.length; n++) {
+    const end = n + 1 < nalDataOffset.length
+      ? nalDataOffset[n + 1] - nalCodeLen[n + 1]
+      : data.length
+
+    const nalLen = end - nalDataOffset[n]
+
+    view.setUint32(offset, nalLen, false)
+    output.set(data.subarray(nalDataOffset[n], end), offset + 4)
+    offset += 4 + nalLen
+  }
+
+  return output
 }
