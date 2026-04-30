@@ -1,6 +1,34 @@
 # Changelog
 
 
+## v0.4.1
+
+[compare changes](https://github.com/plutotcool/fsv/compare/v0.4.0...v0.4.1)
+
+### 🩹 Fixes
+
+- Approve node-av-linux-x64 build for github workflows ([23a7b00](https://github.com/plutotcool/fsv/commit/23a7b00))
+
+### 💅 Refactors
+
+- Eliminate container demuxing in conversion pipeline ([7933f6b](https://github.com/plutotcool/fsv/commit/7933f6b))
+
+### 🏡 Chore
+
+- Suppress ffmpeg logs in tests with Log.setLevel(AV_LOG_QUIET) ([8edc3b5](https://github.com/plutotcool/fsv/commit/8edc3b5))
+- Add mandatory confirmation gate for git operations ([0a16f0e](https://github.com/plutotcool/fsv/commit/0a16f0e))
+- Merge pull request #18 from plutotcool/refactor/eliminate-container-demuxing ([#18](https://github.com/plutotcool/fsv/issues/18))
+- Replace ip subdependency by @webpod/ip to mitigate SSRF vulnerabilities ([1829a82](https://github.com/plutotcool/fsv/commit/1829a82))
+
+### ✅ Tests
+
+- Create tests and add corresponding ci checks ([632426b](https://github.com/plutotcool/fsv/commit/632426b))
+
+### ❤️ Contributors
+
+- Juliendargelos <hello@julien.gl>
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+
 ## v0.4.0
 
 [compare changes](https://github.com/plutotcool/fsv/compare/v0.3.15...v0.4.0)
