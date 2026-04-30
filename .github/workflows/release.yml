@@ -44,6 +44,8 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: pnpm install
+      - name: Run tests
+        run: pnpm test
       - name: Build package
         run: pnpm build
       - name: Release package

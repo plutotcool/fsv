@@ -40,13 +40,26 @@ fsv/
 │       └── shaders/
 │           ├── renderer.vert  # GLSL vertex shader (imported as string via tsdown loader)
 │           └── renderer.frag  # GLSL fragment shader (#define ALPHA 1 injected for alpha videos)
+├── tests/
+│   ├── fixtures/              # Small video files used as test inputs
+│   │   ├── input-h264.mp4         # 5-frame 320×240, H.264/MP4, no alpha
+│   │   ├── input-vp9-alpha.webm   # 5-frame 320×240, VP9/WebM, alpha
+│   │   └── input-prores444.mov    # 5-frame 320×240, ProRes 4444/MOV, alpha
+│   ├── polyfills/
+│   │   └── EncodedVideoChunk.ts   # Minimal WebCodecs polyfill for Node.js
+│   ├── setup.ts               # Vitest global setup — imports polyfills
+│   ├── Manifest.test.ts
+│   ├── Muxer.test.ts
+│   ├── Demuxer.test.ts
+│   └── Converter.test.ts
 ├── @types/
 │   └── shaders.d.ts      # Module declarations for *.vert and *.frag text imports
 ├── demo/                 # Vite demo app (browser-side usage showcase)
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml        # PR checks: typecheck + build
-│       └── release.yml   # Push to main: build + changelogen release + npm publish
+│       ├── ci.yml        # PR checks: typecheck + lint + build + test (parallel jobs)
+│       └── release.yml   # Dispatch: test + build + changelogen release + npm publish
+├── vitest.config.ts      # Test runner config (include, environment, setupFiles)
 ├── tsconfig.json         # strict, ESNext, Bundler resolution, path aliases (~/→src/, ~~/→root/)
 ├── tsdown.config.ts      # Build config: unbundle, ESM+CJS, dts, .vert/.frag as text
 ├── package.json          # Scripts, exports map, bin entry, peerDeps, publishConfig
@@ -90,6 +103,9 @@ pnpm install
 # Type-check (runs tsc --noEmit)
 pnpm typecheck
 
+# Run tests (Vitest)
+pnpm test
+
 # Build the package (tsdown → dist/)
 pnpm build
 
@@ -111,12 +127,38 @@ pnpm release
 
 ## CI/CD Workflows
 
-- **`ci.yml`** — Triggered on PRs to `main`. Runs two parallel jobs:
+- **`ci.yml`** — Triggered on PRs to `main`. Runs four parallel jobs:
   1. **Typecheck** (`pnpm typecheck`)
-  2. **Build** (`pnpm build`)
-- **`release.yml`** — Triggered on push to `main`. Builds the package and runs `pnpm release` (changelogen) to publish to `https://npm.pkg.github.com`.
+  2. **Lint** (`pnpm lint`)
+  3. **Build** (`pnpm build`)
+  4. **Test** (`pnpm test`)
+- **`release.yml`** — Manual dispatch. Runs `pnpm test`, then `pnpm build`, then `pnpm release` (changelogen) to publish to `https://npm.pkg.github.com`.
 
-Always ensure both `pnpm typecheck` and `pnpm build` pass before merging.
+Always ensure `pnpm typecheck`, `pnpm test`, and `pnpm build` all pass before merging.
+
+---
+
+## Testing
+
+Tests live in `tests/` and are run with Vitest (`pnpm test`). The suite covers four modules: `Manifest`, `Muxer`, `Demuxer`, and `Converter`.
+
+### Fixtures
+
+| File | Codec | Alpha |
+|------|-------|-------|
+| `tests/fixtures/input-h264.mp4` | H.264 / MP4 | No |
+| `tests/fixtures/input-vp9-alpha.webm` | VP9 / WebM | Yes |
+| `tests/fixtures/input-prores444.mov` | ProRes 4444 / MOV | Yes |
+
+### EncodedVideoChunk polyfill
+
+`tests/polyfills/EncodedVideoChunk.ts` is a minimal Node.js polyfill for the browser WebCodecs `EncodedVideoChunk` class. It implements the constructor, `type`, `timestamp`, `byteLength`, and `copyTo()`. It is imported in `tests/setup.ts` which Vitest loads as `setupFiles` before any test.
+
+### Test conventions
+
+- No section header banner comments in test files
+- Utility functions and data constants must be placed **after** all `describe` blocks at the end of the file
+- Tests validate parsed output (manifests, frames) — not raw binary byte hashes
 
 ---
 
