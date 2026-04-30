@@ -301,6 +301,25 @@ Use `feat!:` (with `!`) to indicate a **breaking change**.
 | `refactor:` or `perf:` | `Type: Enhancement` |
 | any `!` (breaking change) | add `Type: Breaking Change` in addition to the primary label |
 
+### Mandatory Confirmation Gate for Git Operations
+
+**CRITICAL**: Before running ANY `git commit` or `git push` command, you MUST:
+
+1. **STOP** and output the proposed action as a standalone block:
+   - Changed files list (from `git status --short`)
+   - Proposed commit message (for commit)
+   - Target branch (for push)
+
+2. **WAIT** for explicit user confirmation (e.g. "yes", "go ahead", "approved").
+
+3. **NEVER** chain `git add`, `git commit`, and `git push` in a single Bash call
+   or single message. Commit and push must be separate operations, each with
+   its own confirmation.
+
+**Even if the user says "please commit" or "go ahead", you must show the
+proposal first and wait for confirmation before executing.** The user's
+implicit trust is not explicit confirmation of the specific change.
+
 ---
 
 ## On Being an Agent
