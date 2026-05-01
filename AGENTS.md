@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-`@plutotcool/fsv` is a TypeScript library that defines and implements the **FSV (Fast Scrubbing Video)** format — a custom binary video format optimized for frame-accurate scrubbing on the web, with optional alpha-channel support.
+`@plutotcool/fsv` is a TypeScript library that defines and implements the **FSV (Fast Scrubbing Video)** format — a video container format optimized for frame-accurate scrubbing on the web, using H.264 and H.265 codecs with optional alpha-channel support.
 
 The library ships two distinct APIs:
 
 | API | Environment | Purpose |
 |-----|-------------|---------|
-| **Conversion** | Node.js | Converts any video file to `.fsv` using ffmpeg (`node-av`) for encoding and config extraction |
+| **Conversion** | Node.js | Converts any video file to `.fsv` (H.264/H.265 container) using ffmpeg (`node-av`) for encoding and config extraction |
 | **Decoding / Rendering** | Browser | Loads, demuxes, decodes, and WebGL2-renders `.fsv` files using native browser WebCodecs and WebGL2 APIs |
 
 The package is published to the GitHub Packages registry (`https://npm.pkg.github.com`) under the `@plutotcool` scope.
@@ -185,8 +185,8 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 - Uses `node-av` (ffmpeg bindings) for decoding and encoding
 - Uses a `FilterComplexAPI` for pixel format conversion to `yuv420p`
 - For alpha videos, uses ffmpeg's `alphaextract` filter to produce separate color + alpha streams
-- Supported output codecs: `libx264`, `libx265`, `libvpx-vp8`, `libvpx-vp9`
-- Default output codec: `libx264` → mp4 container
+- Supported output codecs: `libx264` (H.264), `libx265` (H.265)
+- Default output codec: `libx264`
 - Default encoder settings: `crf=20`, `gopSize=5`, `maxBFrames=0`, `threadType=FF_THREAD_FRAME`
 - Sets `AV_CODEC_FLAG_GLOBAL_HEADER` on each encoder so SPS/PPS go into extradata (not inlined in keyframes)
 - Collects raw packets in memory as `Packet[]` — no temp files or intermediate container
@@ -200,7 +200,7 @@ The manifest is serialized as a compact flat number array: each frame is 4 conse
 ### Muxer (Node.js only — `src/core/Muxer.ts`)
 
 - Accepts `Packet[]` arrays from Converter (no container demuxing)
-- Converts Annex B → AVCC bitstream for H.264/H.265 packets (VP8/VP9 pass through unchanged)
+- Converts Annex B → AVCC bitstream for H.264/H.265 packets
 - Packs packets and manifest directly into FSV binary format
 - Reads width/height from `config.codedWidth`/`config.codedHeight` for manifest serialization
 

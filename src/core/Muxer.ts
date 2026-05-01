@@ -16,14 +16,6 @@ export interface MuxOptions {
   config: VideoDecoderConfig
 
   /**
-   * The output codec identifier.
-   *
-   * Used to decide whether Annex B → AVCC conversion is required.
-   * H.264 and H.265 packets require conversion; VP8 and VP9 do not.
-   */
-  codec: 'h264' | 'h265' | 'vp8' | 'vp9'
-
-  /**
    * Total duration of the video in microseconds.
    */
   duration: number
@@ -39,9 +31,8 @@ export const Muxer = {
 /**
  * Muxes raw encoded video packets into fsv format.
  *
- * For H.264 and H.265, each packet's Annex B bitstream is converted to AVCC
- * format (4-byte big-endian length prefixes) before being packed. VP8 and VP9
- * packets are stored as-is.
+ * Each packet's Annex B bitstream is converted to AVCC format
+ * (4-byte big-endian length prefixes) before being packed.
  *
  * @param packets The encoded color (or only) track packets.
  * @param alphaPackets Optional encoded alpha track packets.
@@ -74,18 +65,13 @@ function mux(
 
 function muxTrack(packets: Packet[], {
   config,
-  codec,
   duration
 }: MuxOptions): Buffer {
-  const needsConversion = codec === 'h264' || codec === 'h265'
-
   const chunks: Buffer[] = []
   const frames: ManifestFrame[] = []
 
   for (const packet of packets) {
-    const data = needsConversion
-      ? Buffer.from(annexBToAVCC(packet.data))
-      : packet.data
+    const data = Buffer.from(annexBToAVCC(packet.data))
 
     const previous = frames[frames.length - 1]
 
@@ -122,11 +108,7 @@ function muxTrack(packets: Packet[], {
  *
  * Annex B uses start codes (0x00 0x00 0x00 0x01 or 0x00 0x00 0x01) as NAL
  * unit delimiters. AVCC replaces each start code with a 4-byte big-endian NAL
- * unit length prefix, which is the format expected by WebCodecs for H.264 and
- * H.265.
- *
- * VP8 and VP9 bitstreams do not use start codes and should be passed through
- * unchanged — do not call this function for those codecs.
+ * unit length prefix, which is the format expected by WebCodecs.
  *
  * @param data The Annex B bitstream buffer.
  * @returns A new buffer containing the equivalent AVCC-formatted data.

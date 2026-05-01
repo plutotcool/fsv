@@ -1,5 +1,6 @@
 import { defineCommand } from 'citty'
-import { Converter, FF_ENCODER_LIBX264, type ConvertOptions } from '~/core/Converter'
+import { Converter, type ConvertOptions } from '~/core/Converter'
+import { resolveCodec } from '~/core/Codec'
 import { Logger } from '~/core/Logger'
 
 export default defineCommand({
@@ -26,7 +27,7 @@ export default defineCommand({
     },
     'output-codec': {
       type: 'string',
-      default: FF_ENCODER_LIBX264,
+      default: 'libx264',
       valueHint: 'codec',
       description: 'Codec to use for encoding the video tracks.'
     },
@@ -60,7 +61,7 @@ export default defineCommand({
       }),
 
       alpha: args.alpha,
-      outputCodec: args['output-codec'],
+      outputCodec: resolveCodec(args['output-codec']),
       inputCodec: args['input-codec'] === 'auto'
         ? undefined
         : args['input-codec'] as ConvertOptions['inputCodec'],
