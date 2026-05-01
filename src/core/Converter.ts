@@ -5,7 +5,6 @@ import type {
   FFDecoderCodec,
   FFEncoderCodec,
   AVCodecID,
-  Codec,
   Stream
 } from 'node-av'
 
@@ -22,10 +21,6 @@ import {
 import {
   AV_PIX_FMT_YUV420P,
   AV_CODEC_FLAG_GLOBAL_HEADER,
-  FF_ENCODER_LIBX264,
-  FF_ENCODER_LIBX265,
-  FF_ENCODER_LIBVPX_VP8,
-  FF_ENCODER_LIBVPX_VP9,
   FF_THREAD_FRAME,
   AVCOL_PRI_BT709,
   AVCOL_PRI_BT470BG,
@@ -48,28 +43,12 @@ import {
 } from 'node-av/constants'
 
 import type { Packet } from './Packet'
-import { Muxer as FSVMuxer, type MuxOptions } from './Muxer'
+import { Muxer as FSVMuxer } from './Muxer'
+import { assertCodec, DEFAULT_CODEC, type Codec } from './Codec'
 
-const DEFAULT_OUTPUT_CODEC = FF_ENCODER_LIBX264
 const ALPHA_SPLIT_FILTER = (
   '[0:v]split[v1][v2];[v1]format=yuv420p[color];[v2]alphaextract,format=yuv420p[alpha]'
 )
-
-export const OUTPUT_CODECS = [
-  FF_ENCODER_LIBX264,
-  FF_ENCODER_LIBX265,
-  FF_ENCODER_LIBVPX_VP8,
-  FF_ENCODER_LIBVPX_VP9,
-  'libvpx-vp9',
-  'libvpx-vp8'
-]
-
-export {
-  FF_ENCODER_LIBX264,
-  FF_ENCODER_LIBX265,
-  FF_ENCODER_LIBVPX_VP8,
-  FF_ENCODER_LIBVPX_VP9
-}
 
 export interface ConvertOptions {
   /**
@@ -95,7 +74,7 @@ export interface ConvertOptions {
   /**
    * The output video codec.
    */
-  outputCodec?: typeof OUTPUT_CODECS[number]
+  outputCodec?: Codec
 
   /**
    * Optional encoder settings to override the defaults.
@@ -165,7 +144,6 @@ async function convert(
     const encoded = await transcode(input, options)
     const muxed = FSVMuxer.mux(encoded.color, encoded.alpha, {
       config: encoded.config,
-      codec: encoded.codec,
       duration: encoded.duration
     })
 
@@ -189,7 +167,6 @@ interface TranscodeOutput {
   color: Packet[]
   alpha?: Packet[]
   config: VideoDecoderConfig
-  codec: MuxOptions['codec']
   duration: number
 }
 
@@ -204,7 +181,7 @@ async function transcode(source: string | Buffer, {
   const {
     inputFormat,
     inputCodec,
-    outputCodec = DEFAULT_OUTPUT_CODEC,
+    outputCodec = DEFAULT_CODEC,
     encoder: encoderOptions,
     logger
   } = options
@@ -212,10 +189,7 @@ async function transcode(source: string | Buffer, {
   logger?.start(`Starting encoding`)
 
   try {
-    if (!OUTPUT_CODECS.includes(outputCodec)) {
-      logger?.error(`Supported output codecs: ${OUTPUT_CODECS}`)
-      throw new Error(`Unsupported output codec "${outputCodec}"`)
-    }
+    assertCodec(outputCodec)
 
     logger?.info(`Opening input with format ${inputFormat || '[auto]'}`)
     await using input = await Demuxer.open(source, {
@@ -315,13 +289,12 @@ async function transcode(source: string | Buffer, {
 
     logger?.success(`Encoding completed`)
 
-    return {
-      color: packets,
-      alpha: undefined,
-      config,
-      codec: outputCodecToMuxCodec(outputCodec),
-      duration: streamDurationToMicroseconds(videoStream)
-    }
+  return {
+    color: packets,
+    alpha: undefined,
+    config,
+    duration: streamDurationToMicroseconds(videoStream)
+  }
   } catch (error) {
     logger?.error('Encoding failed')
     throw error
@@ -331,17 +304,14 @@ async function transcode(source: string | Buffer, {
 async function transcodeAlpha(source: string | Buffer, {
   inputFormat,
   inputCodec,
-  outputCodec = DEFAULT_OUTPUT_CODEC,
+  outputCodec = DEFAULT_CODEC,
   encoder: encoderOptions,
   logger
 }: Exclude<ConvertOptions, 'alpha'> = {}): Promise<TranscodeOutput> {
   logger?.start(`Starting encoding`)
 
   try {
-    if (!OUTPUT_CODECS.includes(outputCodec)) {
-      logger?.error(`Supported output codecs: ${OUTPUT_CODECS}`)
-      throw new Error(`Unsupported output codec "${outputCodec}"`)
-    }
+    assertCodec(outputCodec)
 
     logger?.info(`Opening input with format ${inputFormat || '[auto]'}`)
     await using input = await Demuxer.open(source, {
@@ -482,13 +452,12 @@ async function transcodeAlpha(source: string | Buffer, {
 
     logger?.success(`Encoding completed`)
 
-    return {
-      color: colorPackets,
-      alpha: alphaPackets,
-      config,
-      codec: outputCodecToMuxCodec(outputCodec),
-      duration: streamDurationToMicroseconds(videoStream)
-    }
+  return {
+    color: colorPackets,
+    alpha: alphaPackets,
+    config,
+    duration: streamDurationToMicroseconds(videoStream)
+  }
   } catch (error) {
     logger?.error('Encoding failed')
     throw error
@@ -619,7 +588,8 @@ function mapTransferCharacteristic(value: number): string | undefined {
 }
 
 /**
- * Maps an ffmpeg color space (matrix coefficients) value to a WebCodecs matrix string.
+ * Maps an ffmpeg color space (matrix coefficients) value to a WebCodecs matrix
+ * string.
  */
 function mapColorMatrix(value: number): string | undefined {
   switch (value) {
@@ -683,17 +653,15 @@ function streamDurationToMicroseconds(stream: Stream): number {
     return 0
   }
 
-  return Number(duration * BigInt(timeBase.num) * 1_000_000n / BigInt(timeBase.den))
+  return Number(
+    duration * BigInt(timeBase.num) * 1_000_000n / BigInt(timeBase.den)
+  )
 }
 
 function resolveEncoderOptions(
   stream: Stream,
   encoderOptions?: Partial<EncoderOptions>
 ): EncoderOptions {
-  const format = resolveOutputFormat(
-    (encoderOptions as ConvertOptions | undefined)?.outputCodec
-  )
-
   return {
     threadCount: 0,
     threadType: FF_THREAD_FRAME,
@@ -703,77 +671,19 @@ function resolveEncoderOptions(
     frameRate: stream.avgFrameRate,
     ...encoderOptions,
     options: {
-      ...(
-        format === 'mp4' ? {
-          crf: 20,
-          preset: 'slower',
-          tune: 'fastdecode',
-          profile: 'baseline',
-          level: '5.1',
-          sc_threshold: '0',
-          movflags: '+faststart',
-          refs: '1',
-          pixel_format: AV_PIX_FMT_YUV420P
-        } :
-
-        format === 'webm' ? {
-          crf: 20,
-          b: '0',
-          deadline: 'good',
-          'cpu-used': '2',
-          'row-mt': '1',
-          'tile-columns': '2',
-          'tile-rows': '1',
-          'frame-parallel': '1',
-          pixel_format: AV_PIX_FMT_YUV420P
-        } :
-
-        null
-      ),
+      ...{
+        crf: 20,
+        preset: 'slower',
+        tune: 'fastdecode',
+        profile: 'baseline',
+        level: '5.1',
+        sc_threshold: '0',
+        movflags: '+faststart',
+        refs: '1',
+        pixel_format: AV_PIX_FMT_YUV420P
+      },
 
       ...encoderOptions?.options
     }
   } as EncoderOptions
-}
-
-function resolveOutputFormat(
-  codec: ConvertOptions['outputCodec'] = DEFAULT_OUTPUT_CODEC
-) {
-  switch (codec) {
-    case FF_ENCODER_LIBX264:
-    case FF_ENCODER_LIBX265:
-      return 'mp4'
-
-    case FF_ENCODER_LIBVPX_VP8:
-    case FF_ENCODER_LIBVPX_VP9:
-    case 'libvpx-vp8':
-    case 'libvpx-vp9':
-      return 'webm'
-
-    default:
-      throw new Error(`Unsupported output codec "${codec}"`)
-  }
-}
-
-function outputCodecToMuxCodec(
-  codec: ConvertOptions['outputCodec'] = DEFAULT_OUTPUT_CODEC
-): MuxOptions['codec'] {
-  switch (codec) {
-    case FF_ENCODER_LIBX264:
-      return 'h264'
-
-    case FF_ENCODER_LIBX265:
-      return 'h265'
-
-    case FF_ENCODER_LIBVPX_VP8:
-    case 'libvpx-vp8':
-      return 'vp8'
-
-    case FF_ENCODER_LIBVPX_VP9:
-    case 'libvpx-vp9':
-      return 'vp9'
-
-    default:
-      throw new Error(`Unsupported output codec "${codec}"`)
-  }
 }

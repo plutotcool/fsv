@@ -66,6 +66,10 @@
       "import": "./dist/cli/main.mjs",
       "require": "./dist/cli/main.cjs"
     },
+    "./core/Codec": {
+      "import": "./dist/core/Codec.mjs",
+      "require": "./dist/core/Codec.cjs"
+    },
     "./core/Converter": {
       "import": "./dist/core/Converter.mjs",
       "require": "./dist/core/Converter.cjs"

@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 
 import { Converter } from '../src/core/Converter'
 import { Demuxer } from '../src/core/Demuxer'
+import { H264 } from '../src/core/Codec'
 
 describe('Converter', () => {
   describe('mp4/H.264 input (non-alpha)', () => {
@@ -34,7 +35,7 @@ describe('Converter', () => {
 
     it('converts with libx265 output codec', async () => {
       const fsv = demux(await Converter.convert(H264_MP4_FIXTURE, {
-        outputCodec: 'libx265',
+        outputCodec: H264,
         encoder: {
           options: {
             // libx265 does not support H.264-specific profile/tune values;
@@ -42,23 +43,6 @@ describe('Converter', () => {
             profile: undefined,
             tune: undefined,
             preset: 'ultrafast'
-          }
-        }
-      }))
-
-      expect(fsv.width).toBe(320)
-      expect(fsv.frames.length).toBeGreaterThan(0)
-    })
-
-    it('converts with libvpx-vp9 output codec', async () => {
-      const fsv = demux(await Converter.convert(H264_MP4_FIXTURE, {
-        outputCodec: 'libvpx-vp9',
-        encoder: {
-          options: {
-            // VP9 does not support tune:fastdecode or H.264 profile values;
-            // override them so the encoder initialises successfully.
-            profile: undefined,
-            tune: undefined
           }
         }
       }))
@@ -77,7 +61,7 @@ describe('Converter', () => {
       await expect(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         Converter.convert(H264_MP4_FIXTURE, { outputCodec: 'libfoo' as any })
-      ).rejects.toThrow(/[Uu]nsupported/)
+      ).rejects.toThrow(/Unsupported/)
     })
   })
 

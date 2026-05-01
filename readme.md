@@ -4,6 +4,11 @@ FSV (short for "Fast Scrubbing Video") is a video format optimized for fast
 scrubbing on the web, supporting alpha channel. It has been inspired by the
 [ActiveFrame](https://github.com/activetheory/activeframe) project.
 
+More specifically, FSV is a container for h264 and h265. It is designed to be
+easily demuxable on the browser, and contains additional metadata to allow for
+frame-accurate scrubbing and efficient seeking. See the [format](#format)
+section for more details.
+
 [See the demo](https://plutotcool-fsv.vercel.app)
 
 <img src="demo.gif" width="320" height="307"/>
@@ -78,8 +83,8 @@ await Converter.convert('input.webm', 'output.fsv', {
 
 The input file codec is automatically detected if not provided. Yet the
 conversion may fail (especially for alpha videos) if the input codec is not
-compatible with the conversion process. For VP8/VP9 videos, you may need to
-explicitly set the input codec to `libvpx-vp8` or `libvpx-vp9`.
+compatible with the conversion process. For VP8/VP9 input videos, you may
+need to explicitly set the input codec to `libvpx-vp8` or `libvpx-vp9`.
 
 ## Rendering
 

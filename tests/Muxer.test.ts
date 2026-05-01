@@ -7,7 +7,10 @@ import type { Packet } from '../src/core/Packet'
 describe('Muxer', () => {
   describe('non-alpha mux (H.264)', () => {
     const packets = makePackets(5, () => makeAnnexBPacket(0x65, 20))
-    const buffer = Muxer.mux(packets, undefined, { config, codec: 'h264', duration: 500000 })
+    const buffer = Muxer.mux(packets, undefined, {
+      config,
+      duration: 500000
+    })
 
     it('returns a Buffer', () => {
       expect(Buffer.isBuffer(buffer)).toBe(true)
@@ -67,7 +70,10 @@ describe('Muxer', () => {
   describe('alpha mux (H.264)', () => {
     const colorPackets = makePackets(5, () => makeAnnexBPacket(0x65, 20))
     const alphaPackets = makePackets(5, () => makeAnnexBPacket(0x65, 15))
-    const buffer = Muxer.mux(colorPackets, alphaPackets, { config, codec: 'h264', duration: 500000 })
+    const buffer = Muxer.mux(colorPackets, alphaPackets, {
+      config,
+      duration: 500000
+    })
 
     it('first 4 bytes = color track buffer offset (non-zero)', () => {
       const alphaOffset = buffer.readUInt32LE(0)
@@ -90,44 +96,6 @@ describe('Muxer', () => {
 
       expect(alphaManifest.frames).toHaveLength(5)
       expect(alphaManifest.width).toBe(320)
-    })
-  })
-
-  describe('VP8/VP9 pass-through (no Annex B conversion)', () => {
-    it('VP8 packet data is stored unchanged', () => {
-      const raw = makeVpxPacket(32)
-      const packets: Packet[] = [{
-        data: raw,
-        timestamp: 0,
-        isKeyFrame: true
-      }]
-      const buf = Muxer.mux(packets, undefined, { config, codec: 'vp8', duration: 100000 })
-
-      const manifestLength = buf.readUInt32LE(4)
-      const manifest = parseManifest(buf.subarray(8, 8 + manifestLength).toString('utf8'))
-      const frame = manifest.frames[0]
-      const dataStart = 8 + manifestLength
-      const stored = buf.subarray(dataStart + frame.offset, dataStart + frame.offset + frame.byteLength)
-
-      expect(Buffer.from(stored)).toEqual(raw)
-    })
-
-    it('VP9 packet data is stored unchanged', () => {
-      const raw = makeVpxPacket(64)
-      const packets: Packet[] = [{
-        data: raw,
-        timestamp: 0,
-        isKeyFrame: true
-      }]
-      const buf = Muxer.mux(packets, undefined, { config, codec: 'vp9', duration: 100000 })
-
-      const manifestLength = buf.readUInt32LE(4)
-      const manifest = parseManifest(buf.subarray(8, 8 + manifestLength).toString('utf8'))
-      const frame = manifest.frames[0]
-      const dataStart = 8 + manifestLength
-      const stored = buf.subarray(dataStart + frame.offset, dataStart + frame.offset + frame.byteLength)
-
-      expect(Buffer.from(stored)).toEqual(raw)
     })
   })
 })
@@ -161,6 +129,3 @@ function makeAnnexBPacket(nalType: number, payloadSize: number): Buffer {
   return buf
 }
 
-function makeVpxPacket(size: number): Buffer {
-  return Buffer.alloc(size, 0xcd)
-}

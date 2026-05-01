@@ -149,7 +149,7 @@ describe('Demuxer', () => {
 })
 
 const config: VideoDecoderConfig = {
-  codec: 'vp09.00.10.08',
+  codec: 'avc1.42001f',
   codedWidth: 320,
   codedHeight: 240,
   optimizeForLatency: true
@@ -166,7 +166,6 @@ function makePackets(count: number, payloadSize = 32): Packet[] {
 function makeNonAlphaFSV(packetCount = 5): Buffer {
   return Muxer.mux(makePackets(packetCount), undefined, {
     config,
-    codec: 'vp9',
     duration: packetCount * 100000
   })
 }
@@ -174,7 +173,6 @@ function makeNonAlphaFSV(packetCount = 5): Buffer {
 function makeAlphaFSV(packetCount = 5): Buffer {
   return Muxer.mux(makePackets(packetCount), makePackets(packetCount, 16), {
     config,
-    codec: 'vp9',
     duration: packetCount * 100000
   })
 }
