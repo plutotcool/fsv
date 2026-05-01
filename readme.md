@@ -216,7 +216,7 @@ For non-alpha videos, it follows this structure:
 | 4 bytes    | Empty bytes                      |
 | 4 bytes    | Manifest byte length             |
 | Variable   | Manifest data serialized in JSON |
-| Variable   | h264 / h264 packets              |
+| Variable   | h264 / h265 packets              |
 
 For transparent videos, the structure is:
 
@@ -225,12 +225,12 @@ For transparent videos, the structure is:
 | 4 bytes    | Alpha data byte offset           |       |
 | 4 bytes    | Empty bytes                      | Color |
 | 4 bytes    | Manifest byte length             | Color |
-| Variable   | h264 / h264 packets              | Color |
+| Variable   | h264 / h265 packets              | Color |
 | Variable   | Manifest data serialized in JSON | Color |
 | 4 bytes    | Empty bytes                      | Alpha |
 | 4 bytes    | Manifest byte length             | Alpha |
 | Variable   | Manifest data serialized in JSON | Alpha |
-| Variable   | h264 / h264 packets              | Alpha |
+| Variable   | h264 / h265 packets              | Alpha |
 
 The 4 leading empty bytes are used to automatically discriminate between alpha
 and non-alpha videos: if the first 4 bytes of the file are empty, then it's a
