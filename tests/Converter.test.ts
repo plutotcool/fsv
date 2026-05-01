@@ -41,19 +41,17 @@ describe('Converter', () => {
       expect(fsv.width).toBe(320)
       expect(fsv.frames.length).toBeGreaterThan(0)
 
-      // Verify H.264 bitstream: find IDR (NAL type 5) in key frame
-      const keyFrame = fsv.frames.find(f => f.chunk.type === 'key')
-      expect(keyFrame).toBeDefined()
-
-      const nalUnitType = getH264NalUnitType(keyFrame!.chunk)
-      expect(nalUnitType).toBe(5) // IDR frame
+      const nalUnitType = getH264NalUnitType(fsv.frames[0].chunk)
+      expect(nalUnitType).toBe(5) // IDR slice
     })
 
     it('converts with libx265 output codec', async () => {
       const fsv = demux(await Converter.convert(H264_MP4_FIXTURE, {
-        outputCodec: H264, // INTENTIONALLY WRONG - should be H265
+        outputCodec: H265,
         encoder: {
           options: {
+            // @todo: Adjust default encoder options depending on the chosen output codec
+            // See issue #22
             // libx265 does not support H.264-specific profile/tune values;
             // override them so the encoder initialises successfully.
             profile: undefined,
@@ -66,9 +64,8 @@ describe('Converter', () => {
       expect(fsv.width).toBe(320)
       expect(fsv.frames.length).toBeGreaterThan(0)
 
-      // This will FAIL - we expect H.265 but got H.264
       const nalUnitType = getH265NalUnitType(fsv.frames[0].chunk)
-      expect([16, 17]).toContain(nalUnitType) // H.265 IDR_W_RADL or IDR_N_LP
+      expect([19, 20]).toContain(nalUnitType) // IDR_W_RADL (19) or IDR_N_LP (20)
     })
 
     it('throws for a non-existent input path', async () => {
@@ -172,40 +169,43 @@ function demux(buf: Buffer) {
 function getH264NalUnitType(chunk: EncodedVideoChunk): number {
   const data = new Uint8Array(chunk.byteLength)
   chunk.copyTo(data)
-  // AVCC format: 4-byte big-endian length prefix, then NAL unit data
-  // NAL unit type is in bits 0-4 of the first byte after the length prefix
-  // Check if the data might be Annex B format instead (start codes)
-  if (data[4] === 0x00 && data[5] === 0x00 && (data[6] === 0x00 || data[6] === 0x01)) {
-    // Annex B format - search for start codes and check NAL unit types
-    for (let i = 4; i < data.length - 1; i++) {
-      if (data[i] === 0x00 && data[i + 1] === 0x00 && data[i + 2] === 0x01) {
-        const nalUnitType = data[i + 3] & 0x1F
-        if (nalUnitType === 5) return 5 // IDR
-      }
-      if (data[i] === 0x00 && data[i + 1] === 0x00 && data[i + 2] === 0x00 && data[i + 3] === 0x01) {
-        const nalUnitType = data[i + 4] & 0x1F
-        if (nalUnitType === 5) return 5 // IDR
-      }
-    }
-  }
-  // AVCC format
+  // AVCC format: each NAL unit is preceded by a 4-byte big-endian length.
+  // H.264 NAL unit header is 1 byte: forbidden_zero_bit(1) | nal_ref_idc(2) | nal_unit_type(5)
+  // Iterate all NAL units; prefer returning an IDR slice (type 5) over other types.
+  let firstType = -1
   let offset = 0
   while (offset + 4 < data.length) {
-    const nalLen = (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]
+    const nalLen = ((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]) >>> 0
     if (nalLen === 0 || offset + 4 + nalLen > data.length) break
-    const nalUnitType = data[offset + 4] & 0x1F
-    if (nalUnitType === 5) return 5 // IDR frame found
+    const nalType = data[offset + 4] & 0x1F
+    if (firstType === -1) firstType = nalType
+    if (nalType === 5) return 5 // IDR slice — return immediately
     offset += 4 + nalLen
   }
-  // Fallback: return first NAL unit type after first 4-byte length prefix
-  return data[4] & 0x1F
+  return firstType
 }
 
 function getH265NalUnitType(chunk: EncodedVideoChunk): number {
   const data = new Uint8Array(chunk.byteLength)
   chunk.copyTo(data)
-  // Skip 4-byte AVCC length prefix
-  // H.265 NAL unit header is 2 bytes, nal_unit_type is bits 9-14
-  const h265Header = (data[4] << 8) | data[5]
-  return (h265Header >> 9) & 0x3F
+  // AVCC format: each NAL unit is preceded by a 4-byte big-endian length.
+  // H.265 NAL unit header is 2 bytes (big-endian 16-bit value):
+  //   bit 15       : forbidden_zero_bit
+  //   bits 14–9    : nal_unit_type (6 bits)  →  (header >> 9) & 0x3F
+  //   bits 8–3     : nuh_layer_id
+  //   bits 2–0     : nuh_temporal_id_plus1
+  // IDR_W_RADL = 19, IDR_N_LP = 20
+  // Iterate all NAL units; prefer returning an IDR type over other types.
+  let firstType = -1
+  let offset = 0
+  while (offset + 5 < data.length) {
+    const nalLen = ((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]) >>> 0
+    if (nalLen === 0 || offset + 4 + nalLen > data.length) break
+    const header = (data[offset + 4] << 8) | data[offset + 5]
+    const nalType = (header >> 9) & 0x3F
+    if (firstType === -1) firstType = nalType
+    if (nalType === 19 || nalType === 20) return nalType // IDR_W_RADL or IDR_N_LP
+    offset += 4 + nalLen
+  }
+  return firstType
 }
