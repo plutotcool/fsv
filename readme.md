@@ -63,11 +63,12 @@ options for fine-tuning the conversion process:
 
 ```ts
 import { Converter } from '@plutotcool/fsv/core/Converter'
+import { H264 } from '@plutotcool/fsv/core/Codec'
 
 await Converter.convert('input.webm', 'output.fsv', {
   alpha: true,
   inputCodec: 'libvpx-vp9',
-  outputCodec: 'libx264',
+  outputCodec: H264, // default codec, could be ommited here
 
   encoder: {
     gopSize: 5,
@@ -204,8 +205,8 @@ await loaded()
 
 ## Format
 
-The format consists of a single binary containing both demuxed video frames and
-a manifest containing infos for decoding and rendering the video efficiently.
+The format consists of a single binary containing both h264 / h265 packets and
+a manifest with infos for decoding and rendering the video efficiently.
 It can contain an additional alpha track for videos with transparency.
 
 For non-alpha videos, it follows this structure:
@@ -215,7 +216,7 @@ For non-alpha videos, it follows this structure:
 | 4 bytes    | Empty bytes                      |
 | 4 bytes    | Manifest byte length             |
 | Variable   | Manifest data serialized in JSON |
-| Variable   | Internal codec and frames data   |
+| Variable   | h264 / h264 packets              |
 
 For transparent videos, the structure is:
 
@@ -224,12 +225,12 @@ For transparent videos, the structure is:
 | 4 bytes    | Alpha data byte offset           |       |
 | 4 bytes    | Empty bytes                      | Color |
 | 4 bytes    | Manifest byte length             | Color |
-| Variable   | Internal codec and frames data   | Color |
+| Variable   | h264 / h264 packets              | Color |
 | Variable   | Manifest data serialized in JSON | Color |
 | 4 bytes    | Empty bytes                      | Alpha |
 | 4 bytes    | Manifest byte length             | Alpha |
 | Variable   | Manifest data serialized in JSON | Alpha |
-| Variable   | Internal codec and frames data   | Alpha |
+| Variable   | h264 / h264 packets              | Alpha |
 
 The 4 leading empty bytes are used to automatically discriminate between alpha
 and non-alpha videos: if the first 4 bytes of the file are empty, then it's a
