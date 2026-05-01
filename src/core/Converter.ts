@@ -44,7 +44,40 @@ import {
 
 import type { Packet } from './Packet'
 import { Muxer as FSVMuxer } from './Muxer'
-import { assertCodec, DEFAULT_CODEC, type Codec } from './Codec'
+import { assertCodec, DEFAULT_CODEC, H264, H265, type Codec } from './Codec'
+
+const DEFAULT_ENCODER_OPTIONS: Record<Codec, Partial<EncoderOptions>> = {
+  [H264]: {
+    threadCount: 0,
+    threadType: FF_THREAD_FRAME,
+    gopSize: 5,
+    maxBFrames: 0,
+    options: {
+      crf: '20',
+      preset: 'slower',
+      tune: 'fastdecode',
+      profile: 'baseline',
+      level: '5.1',
+      sc_threshold: '0',
+      refs: '1',
+      pixel_format: AV_PIX_FMT_YUV420P
+    }
+  },
+  [H265]: {
+    threadCount: 0,
+    threadType: FF_THREAD_FRAME,
+    gopSize: 5,
+    maxBFrames: 0,
+    options: {
+      crf: '20',
+      preset: 'slower',
+      tune: 'fastdecode',
+      sc_threshold: '0',
+      refs: '1',
+      pixel_format: AV_PIX_FMT_YUV420P
+    }
+  }
+}
 
 const ALPHA_SPLIT_FILTER = (
   '[0:v]split[v1][v2];[v1]format=yuv420p[color];[v2]alphaextract,format=yuv420p[alpha]'
@@ -212,7 +245,7 @@ async function transcode(source: string | Buffer, {
     logger?.info(`Initializing encoder with codec ${outputCodec}`)
     using encoder = await Encoder.create(
       outputCodec as FFEncoderCodec,
-      resolveEncoderOptions(videoStream, encoderOptions)
+      resolveEncoderOptions(videoStream, outputCodec, encoderOptions)
     )
 
     // Setting AV_CODEC_FLAG_GLOBAL_HEADER causes the encoder to place SPS/PPS
@@ -325,7 +358,7 @@ async function transcodeAlpha(source: string | Buffer, {
       throw new Error('No video stream found in input')
     }
 
-    const resolvedEncoderOptions = resolveEncoderOptions(videoStream, encoderOptions)
+    const resolvedEncoderOptions = resolveEncoderOptions(videoStream, outputCodec, encoderOptions)
 
     logger?.info(`Initializing decoder with codec ${inputCodec || '[auto]'}`)
     using decoder = await Decoder.create(
@@ -660,29 +693,18 @@ function streamDurationToMicroseconds(stream: Stream): number {
 
 function resolveEncoderOptions(
   stream: Stream,
+  codec: Codec,
   encoderOptions?: Partial<EncoderOptions>
 ): EncoderOptions {
+  const defaultEncoderOptions = DEFAULT_ENCODER_OPTIONS[codec]
+
   return {
-    threadCount: 0,
-    threadType: FF_THREAD_FRAME,
-    gopSize: 5,
-    maxBFrames: 0,
+    ...defaultEncoderOptions,
     timeBase: stream.timeBase,
     frameRate: stream.avgFrameRate,
     ...encoderOptions,
     options: {
-      ...{
-        crf: 20,
-        preset: 'slower',
-        tune: 'fastdecode',
-        profile: 'baseline',
-        level: '5.1',
-        sc_threshold: '0',
-        movflags: '+faststart',
-        refs: '1',
-        pixel_format: AV_PIX_FMT_YUV420P
-      },
-
+      ...defaultEncoderOptions?.options,
       ...encoderOptions?.options
     }
   } as EncoderOptions

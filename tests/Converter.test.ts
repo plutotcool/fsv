@@ -47,18 +47,7 @@ describe('Converter', () => {
 
     it('converts with libx265 output codec', async () => {
       const fsv = demux(await Converter.convert(H264_MP4_FIXTURE, {
-        outputCodec: H265,
-        encoder: {
-          options: {
-            // @todo: Adjust default encoder options depending on the chosen output codec
-            // See issue #22
-            // libx265 does not support H.264-specific profile/tune values;
-            // override them so the encoder initialises successfully.
-            profile: undefined,
-            tune: undefined,
-            preset: 'ultrafast'
-          }
-        }
+        outputCodec: H265
       }))
 
       expect(fsv.width).toBe(320)
