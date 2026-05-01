@@ -87,6 +87,36 @@ conversion may fail (especially for alpha videos) if the input codec is not
 compatible with the conversion process. For VP8/VP9 input videos, you may
 need to explicitly set the input codec to `libvpx-vp8` or `libvpx-vp9`.
 
+### Encoder Options
+
+FSV uses codec-specific default encoder options optimized for fast scrubbing
+and efficient decoding:
+
+| Option | H.264 (libx264) | H.265 (libx265) |
+|:-------|:-----------------|:-----------------|
+| crf | 20 | 20 |
+| preset | slower | slower |
+| tune | fastdecode | fastdecode |
+| profile | baseline | - |
+| level | 5.1 | - |
+| gopSize | 5 | 5 |
+| maxBFrames | 0 | 0 |
+| refs | 1 | 1 |
+| pixel_format | yuv420p | yuv420p |
+
+**Performance notes:**
+- `fastdecode` tune optimizes the encoded bitstream for faster decoding
+- Low `gopSize` (5) ensures frequent keyframes for frame-accurate seeking
+- `maxBFrames: 0` avoids bidirectional frames, simplifying decoding order
+- `refs: 1` limits reference frames, reducing memory usage during decoding
+- `profile: baseline` for H.264 ensures maximum compatibility
+
+All of these values as well as other encoder options can be overridden via the
+`encoder` option of the converter.
+
+When using the cli, the `crf` and `gopSize` options can be overridden via the
+`--crf` and `--gop` arguments.
+
 ## Rendering
 
 To render a fsv video in the browser with frame-accurate scrubbing, use the
