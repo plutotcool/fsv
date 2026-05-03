@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
-import { runMain } from 'citty'
-import main from './main'
+import { Cli, friendlyErrorPlugin } from 'clerc'
+import pkg from '~~/package.json'
+import { convert } from './convert'
 
-runMain(main)
+Cli()
+  .scriptName(pkg.name.split('/').pop()!)
+  .description(pkg.description)
+  .version(pkg.version)
+  .use(friendlyErrorPlugin())
+  .command(convert)
+  .parse()
