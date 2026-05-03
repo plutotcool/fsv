@@ -1,77 +1,76 @@
-import { defineCommand } from 'citty'
+import { defineCommand, Types } from 'clerc'
 import { Converter, type ConvertOptions } from '~/core/Converter'
-import { resolveCodec } from '~/core/Codec'
+import { CODECS, DEFAULT_CODEC } from '~/core/Codec'
 import { Logger } from '~/core/Logger'
 
-export default defineCommand({
-  meta: {
-    name: 'convert',
-    description: 'Convert videos to optimized fsv format.'
-  },
-  args: {
-    input: {
-      type: 'positional',
-      required: true,
-      description: 'Path to the input video file.'
+export const convert = defineCommand({
+  name: 'convert',
+  description: 'Convert videos to optimized fsv format',
+  parameters: [
+    {
+      key: '<input>',
+      description: 'Path to the input video file',
+      type: String,
+      required: true
     },
-    output: {
-      type: 'positional',
-      required: true,
-      description: 'Path to the output fsv file.'
-    },
-    'input-codec': {
-      type: 'string',
+    {
+      key: '<output>',
+      description: 'Path to the output fsv file',
+      type: String,
+      required: true
+    }
+  ],
+  flags: {
+    inputCodec: {
+      type: String,
       default: 'auto',
-      valueHint: 'codec',
-      description: 'Codec to use for decoding the input video.',
+      description: 'Codec to use for decoding the input video',
     },
-    'output-codec': {
-      type: 'string',
-      default: 'libx264',
-      valueHint: 'codec',
-      description: 'Codec to use for encoding the video tracks.'
+    outputCodec: {
+      type: Types.Enum(...CODECS),
+      default: DEFAULT_CODEC,
+      description: 'Codec to use for encoding the video tracks'
     },
     crf: {
-      type: 'string',
-      default: '20',
+      type: Number,
+      default: 20,
       valueHint: 'number',
-      description: 'Constant Rate Factor, lower is better quality.'
+      description: 'Constant Rate Factor, lower is better quality'
     },
     gop: {
-      type: 'string',
-      default: '5',
+      type: Number,
+      default: 5,
       valueHint: 'number',
-      description: 'Group of Pictures size, determining keyframe intervals.'
+      description: 'Group of Pictures size, determining keyframe intervals'
     },
     alpha: {
-      type: 'boolean',
+      type: Boolean,
       default: false,
-      description: 'Whether to include an alpha track.'
+      description: 'Whether to include an alpha track'
     },
     debug: {
-      type: 'boolean',
+      type: Boolean,
       default: false,
-      description: 'Enable debug logging for the conversion process.'
+      description: 'Enable debug logging for the conversion process'
     }
-  },
-  async run({ args }) {
-    await Converter.convert(args.input, args.output, {
-      logger: Logger.create({
-        level: args.debug ? Logger.levels.debug : Logger.levels.info
-      }),
-
-      alpha: args.alpha,
-      outputCodec: resolveCodec(args['output-codec']),
-      inputCodec: args['input-codec'] === 'auto'
-        ? undefined
-        : args['input-codec'] as ConvertOptions['inputCodec'],
-
-      encoder: {
-        gopSize: parseInt(args.gop, 10),
-        options: {
-          crf: args.crf,
-        }
-      }
-    })
   }
+}, async ({ parameters, flags }) => {
+  await Converter.convert(parameters.input, parameters.output, {
+    logger: Logger.create({
+      level: flags.debug ? Logger.levels.debug : Logger.levels.info
+    }),
+
+    alpha: flags.alpha,
+    outputCodec: flags.outputCodec,
+    inputCodec: flags.inputCodec === 'auto'
+      ? undefined
+      : flags.inputCodec as ConvertOptions['inputCodec'],
+
+    encoder: {
+      gopSize: flags.gop,
+      options: {
+        crf: flags.crf,
+      }
+    }
+  })
 })

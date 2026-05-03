@@ -39,23 +39,26 @@ To convert a video to fsv, you can simply use the `fsv convert` cli command:
 ```shell
 $ fsv convert --help
 
-Convert videos to optimized fsv format. (fsv convert vx.x.x)
+fsv convert v0.4.1 - Convert videos to optimized fsv format
 
-USAGE fsv convert [OPTIONS] <INPUT> <OUTPUT>
+Usage
+  $ fsv convert <input> <output> [flags]
 
-ARGUMENTS
+Parameters
+  <input>   String  Path to the input video file
+  <output>  String  Path to the output fsv file
 
-                 INPUT  Path to the input video file. (Required)
-                OUTPUT  Path to the output fsv file. (Required)
+Flags
+  --input-codec   String             Codec to use for decoding the input video               [default: "auto"]
+  --output-codec  libx264 | libx265  Codec to use for encoding the video tracks              [default: "libx264"]
+  --crf           Number             Constant Rate Factor, lower is better quality           [default: 20]
+  --gop           Number             Group of Pictures size, determining keyframe intervals  [default: 5]
+  --alpha         Boolean            Whether to include an alpha track                       [default: false]
+  --debug         Boolean            Enable debug logging for the conversion process         [default: false]
 
-OPTIONS
-
- --input-codec=<codec>  Codec to use for decoding the input video. (Default: auto)
---output-codec=<codec>  Codec to use for encoding the video tracks. (Default: libx264)
-        --crf=<number>  Constant Rate Factor, lower is better quality. (Default: 20)
-        --gop=<number>  Group of Pictures size, determining keyframe intervals. (Default: 5)
-               --alpha  Whether to include an alpha track. (Default: false)
-               --debug  Enable debug logging for the conversion process. (Default: false)
+Global Flags
+  --version, -V  Boolean  Prints current version  [default: false]
+  --help, -h     Boolean  Show help               [default: false]
 ```
 
 In NodeJS, you can also use the conversion API programmatically to provide more

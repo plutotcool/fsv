@@ -1,13 +1,10 @@
-import { defineCommand } from 'citty'
+import { Cli, friendlyErrorPlugin } from 'clerc'
 import pkg from '~~/package.json'
+import { convert } from './convert'
 
-export default defineCommand({
-  meta: {
-    name: pkg.name.split('/').pop(),
-    version: pkg.version,
-    description: pkg.description
-  },
-  subCommands: {
-    convert: () => import('./convert').then(module => module.default)
-  }
-})
+export default Cli()
+  .scriptName(pkg.name.split('/').pop()!)
+  .description(pkg.description)
+  .version(pkg.version)
+  .use(friendlyErrorPlugin())
+  .command(convert)

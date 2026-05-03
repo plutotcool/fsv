@@ -1,13 +1,20 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  dts: true,
   unbundle: true,
   format: ['esm', 'cjs'],
   entry: ['src/**/*.ts'],
 
+  dts: {
+    entry: [
+      'src/**/*.ts',
+      '!src/cli/**'
+    ]
+  },
+
   exports: {
-    bin: true
+    bin: true,
+    exclude: ['cli', 'cli/**']
   },
 
   loader: {
