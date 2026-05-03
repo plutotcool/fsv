@@ -1,14 +1,14 @@
 import fs from 'node:fs/promises'
-import type { ConsolaInstance } from 'consola'
+import { type ConsolaInstance } from 'consola'
 
-import type {
-  FFDecoderCodec,
-  FFEncoderCodec,
-  AVCodecID,
-  Stream
+import {
+  Log,
+  CodecParameters,
+  type FFDecoderCodec,
+  type FFEncoderCodec,
+  type AVCodecID,
+  type Stream
 } from 'node-av'
-
-import { CodecParameters } from 'node-av'
 
 import {
   Demuxer,
@@ -39,7 +39,15 @@ import {
   AVCOL_SPC_SMPTE170M,
   AVCOL_SPC_RGB,
   AVCOL_RANGE_JPEG,
-  AVCOL_RANGE_MPEG
+  AVCOL_RANGE_MPEG,
+  AV_LOG_VERBOSE,
+  AV_LOG_DEBUG,
+  AV_LOG_INFO,
+  AV_LOG_WARNING,
+  AV_LOG_ERROR,
+  AV_LOG_FATAL,
+  AV_LOG_PANIC,
+  AV_LOG_TRACE
 } from 'node-av/constants'
 
 import type { Packet } from './Packet'
@@ -82,6 +90,17 @@ const DEFAULT_ENCODER_OPTIONS: Record<Codec, Partial<EncoderOptions>> = {
 const ALPHA_SPLIT_FILTER = (
   '[0:v]split[v1][v2];[v1]format=yuv420p[color];[v2]alphaextract,format=yuv420p[alpha]'
 )
+
+const AV_CONSOLA_LEVELS = {
+  [AV_LOG_VERBOSE]: 'verbose',
+  [AV_LOG_DEBUG]: 'debug',
+  [AV_LOG_INFO]: 'info',
+  [AV_LOG_WARNING]: 'warn',
+  [AV_LOG_ERROR]: 'error',
+  [AV_LOG_FATAL]: 'fatal',
+  [AV_LOG_PANIC]: 'fatal',
+  [AV_LOG_TRACE]: 'trace'
+} as const
 
 export interface ConvertOptions {
   /**
@@ -168,8 +187,14 @@ async function convert(
   )
 
   const {
-    logger
+    logger,
   } = options || {}
+
+  const ffmpegLogger = logger?.withTag('ffmpeg')
+
+  Log.setCallback((level, message) => {
+    ffmpegLogger?.[AV_CONSOLA_LEVELS[level] || 'log'](message)
+  })
 
   logger?.start('Starting conversion')
 
