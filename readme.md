@@ -171,7 +171,6 @@ const decoder = new Decoder((
 await decoder.load(arrayBuffer)
 
 // Load video from stream, resolving as soon as the manifest is loaded
-await decoder.loadStream('/video.fsv')
 await decoder.loadStream(streamReader)
 
 // Decode the video at 50% of its duration
