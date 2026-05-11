@@ -1,6 +1,44 @@
 # Changelog
 
 
+## v0.5.0
+
+[compare changes](https://github.com/plutotcool/fsv/compare/v0.4.1...v0.5.0)
+
+### 🚀 Enhancements
+
+- ⚠️  Drop VP8/VP9 output codec support ([43e04dd](https://github.com/plutotcool/fsv/commit/43e04dd))
+- Wrap node-av logger into fsv logger ([5f98f95](https://github.com/plutotcool/fsv/commit/5f98f95))
+
+### 🩹 Fixes
+
+- **tests:** Correct NAL unit type helpers and codec test assertions ([14ff87f](https://github.com/plutotcool/fsv/commit/14ff87f))
+- Adjust default encoder options depending on chosen codec ([566fcbc](https://github.com/plutotcool/fsv/commit/566fcbc))
+
+### 💅 Refactors
+
+- Switch from citty to clerc for the cli ([4cb0b91](https://github.com/plutotcool/fsv/commit/4cb0b91))
+
+### 🏡 Chore
+
+- Merge pull request #23 from plutotcool/feat/drop-vp8-vp9-output ([#23](https://github.com/plutotcool/fsv/issues/23))
+- Merge pull request #24 from plutotcool/fix/adjust-default-encoder-options ([#24](https://github.com/plutotcool/fsv/issues/24))
+- Merge pull request #25 from plutotcool/refactor/switch-cli-to-clerc ([#25](https://github.com/plutotcool/fsv/issues/25))
+
+### ✅ Tests
+
+- Verify encoded bitstream uses correct codec ([22e74b6](https://github.com/plutotcool/fsv/commit/22e74b6))
+- Add tests for the cli ([82aa883](https://github.com/plutotcool/fsv/commit/82aa883))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Drop VP8/VP9 output codec support ([43e04dd](https://github.com/plutotcool/fsv/commit/43e04dd))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+- Juliendargelos <hello@julien.gl>
+
 ## v0.4.1
 
 [compare changes](https://github.com/plutotcool/fsv/compare/v0.4.0...v0.4.1)
