@@ -1,18 +1,21 @@
 import {
   FF_ENCODER_LIBX264 as H264,
-  FF_ENCODER_LIBX265 as H265
+  FF_ENCODER_LIBX265 as H265,
+  FF_ENCODER_LIBSVTAV1 as AV1
 } from 'node-av/constants'
 
 export const CODECS = [
   H264,
-  H265
+  H265,
+  AV1
 ]
 
 export const DEFAULT_CODEC = H264
 
 export {
   H264,
-  H265
+  H265,
+  AV1
 }
 
 export type Codec = typeof CODECS[number]

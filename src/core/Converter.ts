@@ -52,7 +52,7 @@ import {
 
 import type { Packet } from './Packet'
 import { Muxer as FSVMuxer } from './Muxer'
-import { assertCodec, DEFAULT_CODEC, H264, H265, type Codec } from './Codec'
+import { assertCodec, DEFAULT_CODEC, H264, H265, AV1, type Codec } from './Codec'
 
 const DEFAULT_ENCODER_OPTIONS: Record<Codec, Partial<EncoderOptions>> = {
   [H264]: {
@@ -82,6 +82,20 @@ const DEFAULT_ENCODER_OPTIONS: Record<Codec, Partial<EncoderOptions>> = {
       tune: 'fastdecode',
       sc_threshold: '0',
       refs: '1',
+      pixel_format: AV_PIX_FMT_YUV420P
+    }
+  },
+  [AV1]: {
+    threadCount: 0,
+    threadType: FF_THREAD_FRAME,
+    gopSize: 5,
+    maxBFrames: 0,
+    // SVT-AV1 errors out when both a target bitrate and CRF are set; node-av
+    // defaults bitrate to 1 Mbps so we must explicitly disable it.
+    bitrate: 0,
+    options: {
+      crf: '30',
+      preset: '8',
       pixel_format: AV_PIX_FMT_YUV420P
     }
   }
@@ -270,7 +284,7 @@ async function transcode(source: string | Buffer, {
     logger?.info(`Initializing encoder with codec ${outputCodec}`)
     using encoder = await Encoder.create(
       outputCodec as FFEncoderCodec,
-      resolveEncoderOptions(videoStream, outputCodec, encoderOptions)
+      resolveEncoderOptions(videoStream, outputCodec, encoderOptions, decoder)
     )
 
     // Setting AV_CODEC_FLAG_GLOBAL_HEADER causes the encoder to place SPS/PPS
@@ -383,13 +397,13 @@ async function transcodeAlpha(source: string | Buffer, {
       throw new Error('No video stream found in input')
     }
 
-    const resolvedEncoderOptions = resolveEncoderOptions(videoStream, outputCodec, encoderOptions)
-
     logger?.info(`Initializing decoder with codec ${inputCodec || '[auto]'}`)
     using decoder = await Decoder.create(
       videoStream,
       inputCodec as FFDecoderCodec
     )
+
+    const resolvedEncoderOptions = resolveEncoderOptions(videoStream, outputCodec, encoderOptions, decoder)
 
     logger?.info(`Initializing color encoder with codec ${outputCodec}`)
     using colorEncoder = await Encoder.create(
@@ -719,14 +733,26 @@ function streamDurationToMicroseconds(stream: Stream): number {
 function resolveEncoderOptions(
   stream: Stream,
   codec: Codec,
-  encoderOptions?: Partial<EncoderOptions>
+  encoderOptions?: Partial<EncoderOptions>,
+  decoder?: Decoder
 ): EncoderOptions {
   const defaultEncoderOptions = DEFAULT_ENCODER_OPTIONS[codec]
 
+  // SVT-AV1 derives the encoded frame rate from the codec context time base
+  // and rejects anything above 240 fps. MP4 streams typically have a very
+  // fine time base (e.g. 1/15360) which SVT-AV1 misinterprets, so for AV1
+  // we use the inverted average frame rate as the time base instead.
+  const timeBase = codec === AV1
+    ? { num: stream.avgFrameRate.den, den: stream.avgFrameRate.num }
+    : stream.timeBase
+
   return {
     ...defaultEncoderOptions,
-    timeBase: stream.timeBase,
+    timeBase,
     frameRate: stream.avgFrameRate,
+    // Passing the decoder lets node-av propagate the source framerate to the
+    // encoder's codec context at lazy-open time, which SVT-AV1 needs.
+    ...(decoder && { decoder }),
     ...encoderOptions,
     options: {
       ...defaultEncoderOptions?.options,

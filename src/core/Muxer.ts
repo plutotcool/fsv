@@ -69,9 +69,12 @@ function muxTrack(packets: Packet[], {
 }: MuxOptions): Buffer {
   const chunks: Buffer[] = []
   const frames: ManifestFrame[] = []
+  const usesAVCC = needsAVCC(config.codec)
 
   for (const packet of packets) {
-    const data = Buffer.from(annexBToAVCC(packet.data))
+    const data = usesAVCC
+      ? Buffer.from(annexBToAVCC(packet.data))
+      : Buffer.from(packet.data)
 
     const previous = frames[frames.length - 1]
 
@@ -101,6 +104,21 @@ function muxTrack(packets: Packet[], {
     manifestBuffer,
     chunksBuffer
   ])
+}
+
+/**
+ * Returns true when the given WebCodecs codec string requires Annex B → AVCC
+ * conversion before muxing.
+ *
+ * H.264 (`avc1.*`) and H.265 (`hvc1.*` / `hev1.*`) packets emitted by ffmpeg
+ * are in Annex B byte-stream format and must be converted to AVCC (length
+ * prefixed) for WebCodecs. AV1 (`av01.*`) packets are raw OBU bitstreams and
+ * are passed through unchanged.
+ */
+function needsAVCC(codec: string): boolean {
+  return codec.startsWith('avc1')
+    || codec.startsWith('hvc1')
+    || codec.startsWith('hev1')
 }
 
 /**
