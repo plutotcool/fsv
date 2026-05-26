@@ -110,6 +110,12 @@ async function demuxStream(
    *          been loaded.
    */
   loaded(length?: number): Promise<void>
+
+  /**
+   * Cancels the stream, stopping the background read loop and rejecting any
+   * pending `loaded()` promises.
+   */
+  cancel(): void
 }> {
   const buffer = createStreamBuffer()
 
@@ -163,11 +169,23 @@ async function demuxStream(
 
   const queue = createStreamQueue(fsv)
 
+  let cancelled = false
+
+  const cancel = () => {
+    if (cancelled) return
+    cancelled = true
+    reader.cancel().catch(() => {})
+    buffer.flush()
+    queue.cancel(new Error('FSV stream cancelled'))
+  }
+
   let keyIndex: number = 0
   let loadingFrameIndex: number = 0
   let loadingFrame: ManifestFrame | undefined = manifest.frames[0]
 
   const writeFrames = () => {
+    if (cancelled) return
+
     let loadedFrame = false
 
     while (
@@ -205,13 +223,13 @@ async function demuxStream(
     }
   }
 
-  (async () => {
+  ;(async () => {
     writeFrames()
 
-    while (true) {
+    while (!cancelled) {
       const { done, value } = await reader.read()
 
-      if (done) {
+      if (done || cancelled) {
         break
       }
 
@@ -222,7 +240,8 @@ async function demuxStream(
 
   return {
     fsv,
-    loaded: queue.loaded
+    loaded: queue.loaded,
+    cancel
   }
 }
 
@@ -313,19 +332,24 @@ function createStreamBuffer() {
 }
 
 function createStreamQueue(fsv: FSV) {
-  const queue = new Map<() => void, number>()
+  const queue = new Map<() => void, { length: number; reject: (error: Error) => void }>()
+  let cancelError: Error | undefined
 
   return {
     loaded(length: number = fsv.length) {
+      if (cancelError) {
+        return Promise.reject(cancelError)
+      }
+
       return length <= fsv.frames.length
         ? Promise.resolve()
-        : new Promise<void>(resolve => queue.set(resolve, length))
+        : new Promise<void>((resolve, reject) => queue.set(resolve, { length, reject }))
     },
 
     update() {
       const trash: (() => void)[] = []
 
-      for (const [resolve, length] of queue) {
+      for (const [resolve, { length }] of queue) {
         if (length <= fsv.frames.length) {
           resolve()
           trash.push(resolve)
@@ -335,6 +359,16 @@ function createStreamQueue(fsv: FSV) {
       for (const resolve of trash) {
         queue.delete(resolve)
       }
+    },
+
+    cancel(error: Error) {
+      cancelError = error
+
+      for (const [, { reject }] of queue) {
+        reject(error)
+      }
+
+      queue.clear()
     }
   }
 }

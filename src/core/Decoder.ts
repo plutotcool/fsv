@@ -61,6 +61,8 @@ export class Decoder implements Video {
   private alphaDecoder?: TrackDecoder
   private colorFrame?: VideoFrame
   private alphaFrame?: VideoFrame
+  private streamCancel?: () => void
+  private closed: boolean = false
 
   /**
    * Creates a new Decoder instance.
@@ -140,22 +142,29 @@ export class Decoder implements Video {
      */
     loaded(length?: number): Promise<void>
   }> {
+    this.streamCancel?.()
+    this.streamCancel = undefined
+
     const {
       fsv,
-      loaded
+      loaded,
+      cancel
     } = await Demuxer.demuxStream(reader, () => {
+      if (this.closed) return
       if (this.pendingFrame !== undefined) {
         this.colorDecoder.set(this.pendingFrame)
       }
     })
 
+    this.streamCancel = cancel
     this.alphaDecoder?.close()
     this.alphaDecoder = undefined
 
     try {
       await this.colorDecoder.load(fsv, config)
     } catch (error) {
-      await reader.cancel()
+      cancel()
+      this.streamCancel = undefined
       throw error
     }
 
@@ -196,6 +205,9 @@ export class Decoder implements Video {
    * Closes the decoder and releases all associated resources.
    */
   public close(): void {
+    this.closed = true
+    this.streamCancel?.()
+    this.streamCancel = undefined
     this.colorDecoder.close()
     this.alphaDecoder?.close()
     this.colorFrame?.close()
@@ -207,24 +219,25 @@ export class Decoder implements Video {
   }
 
   private colorCallback = (frame: VideoFrame, index: number): void => {
-    if (index === this.pendingFrame) {
-      this.colorFrame = frame
-      this.commonCallback()
-    } else {
+    if (this.closed || index !== this.pendingFrame) {
       frame.close()
+      return
     }
+    this.colorFrame = frame
+    this.commonCallback()
   }
 
   private alphaCallback = (frame: VideoFrame, index: number): void => {
-    if (index === this.pendingFrame) {
-      this.alphaFrame = frame
-      this.commonCallback()
-    } else {
+    if (this.closed || index !== this.pendingFrame) {
       frame.close()
+      return
     }
+    this.alphaFrame = frame
+    this.commonCallback()
   }
 
   private commonCallback = (): void => {
+    if (this.closed) return
     if (this.colorFrame && (!this.alphaDecoder || this.alphaFrame)) {
       this.currentFrame = this.pendingFrame
       this.callback(this.colorFrame, this.alphaFrame, this.currentFrame!)
