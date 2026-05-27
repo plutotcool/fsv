@@ -54,14 +54,15 @@ export class Renderer implements Video {
 
   private gl: WebGL2RenderingContext
   private decoder: Decoder
-  private buffer: WebGLBuffer
-  private vertexArray: WebGLVertexArrayObject
+  private buffer?: WebGLBuffer
+  private vertexArray?: WebGLVertexArrayObject
   private vertexShader?: WebGLShader
   private fragmentShader?: WebGLShader
   private program?: WebGLProgram
-  private colorTexture: WebGLTexture
+  private colorTexture?: WebGLTexture
   private alphaTexture?: WebGLTexture
   private currentPremultiplyAlpha: boolean
+  private closed: boolean = false
 
   public get width() {
     return this.decoder.width
@@ -156,6 +157,8 @@ export class Renderer implements Video {
     data: ArrayBuffer | string,
     config?: Partial<VideoDecoderConfig>
   ): Promise<void> {
+    if (this.closed) throw new Error('Renderer is closed')
+
     if (typeof data === 'string') {
       const response = await fetch(data)
 
@@ -226,14 +229,17 @@ export class Renderer implements Video {
   }
 
   public seek(time: number): void {
+    if (this.closed) throw new Error('Renderer is closed')
     this.decoder.seek(time)
   }
 
   public progress(progress: number): void {
+    if (this.closed) throw new Error('Renderer is closed')
     this.decoder.progress(progress)
   }
 
   public set(index: number): void {
+    if (this.closed) throw new Error('Renderer is closed')
     this.decoder.set(index)
   }
 
@@ -241,16 +247,30 @@ export class Renderer implements Video {
    * Closes the renderer and releases all associated resources.
    */
   public close(): void {
+    if (this.closed) return
+    this.closed = true
+
     this.decoder.close()
 
     this.program && this.gl.deleteProgram(this.program)
     this.vertexShader && this.gl.deleteShader(this.vertexShader)
     this.fragmentShader && this.gl.deleteShader(this.fragmentShader)
 
-    this.gl.deleteTexture(this.colorTexture)
+    this.colorTexture && this.gl.deleteTexture(this.colorTexture)
     this.alphaTexture && this.gl.deleteTexture(this.alphaTexture)
 
-    this.gl.deleteBuffer(this.buffer)
+    this.buffer && this.gl.deleteBuffer(this.buffer)
+    this.vertexArray && this.gl.deleteVertexArray(this.vertexArray)
+
+    this.program = undefined
+    this.vertexShader = undefined
+    this.fragmentShader = undefined
+    this.colorTexture = undefined
+    this.alphaTexture = undefined
+    this.buffer = undefined
+    this.vertexArray = undefined
+
+    this.gl.getExtension('WEBGL_lose_context')?.loseContext()
   }
 
   /**
@@ -260,6 +280,8 @@ export class Renderer implements Video {
    * changed, or if the program or textures need to be recreated for any reason.
    */
   public initialize() {
+    if (this.closed) throw new Error('Renderer is closed')
+
     if (
       this.program &&
       this.alpha === this.decoder.alpha &&
@@ -319,7 +341,7 @@ export class Renderer implements Video {
     this.gl.clearColor(0, 0, 0, 0)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT)
     this.gl.useProgram(this.program!)
-    this.gl.bindVertexArray(this.vertexArray)
+    this.gl.bindVertexArray(this.vertexArray ?? null)
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 3)
   }
 

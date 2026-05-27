@@ -25,6 +25,7 @@ export class TrackDecoder implements Video {
   public currentFrame?: number
   public pendingFrame?: number
   public readonly alpha = false
+  private closed: boolean = false
 
   private track?: FSVTrack
   private config?: VideoDecoderConfig
@@ -72,6 +73,14 @@ export class TrackDecoder implements Video {
     track: FSVTrack,
     config?: Partial<VideoDecoderConfig>,
   ): Promise<void> {
+    if (this.closed) {
+      this.decoder = new VideoDecoder({
+        output: this.output,
+        error: this.error
+      })
+      this.closed = false
+    }
+
     this.config = await TrackDecoder.config(track, config)
     this.track = track
     this.currentFrame = undefined
@@ -90,6 +99,7 @@ export class TrackDecoder implements Video {
   }
 
   public set(index: number): void {
+    if (this.closed) return
     index = Math.max(0, Math.min(this.length, index))
 
     if (index === this.currentFrame) {
@@ -105,7 +115,7 @@ export class TrackDecoder implements Video {
     }
 
     if (this.decoder.state === 'closed') {
-      this.decoder.configure(this.config!)
+      return
     }
 
     if (
@@ -131,6 +141,7 @@ export class TrackDecoder implements Video {
    * Closes the decoder and releases all associated resources.
    */
   public close(): void {
+    this.closed = true
     this.currentFrame = undefined
     this.pendingFrame = undefined
     this.track = undefined
@@ -138,7 +149,12 @@ export class TrackDecoder implements Video {
   }
 
   private output = (frame: VideoFrame): void => {
-    const index = this.track!.indices.get(frame.timestamp)!
+    if (this.closed || !this.track) {
+      frame.close()
+      return
+    }
+
+    const index = this.track.indices.get(frame.timestamp)!
 
     if (this.pendingFrame === index) {
       this.currentFrame = index

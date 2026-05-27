@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 import { Muxer } from '../src/core/Muxer'
 import { Demuxer } from '../src/core/Demuxer'
@@ -146,6 +146,54 @@ describe('Demuxer', () => {
       )
     })
   })
+
+  describe('demuxStream cancel()', () => {
+    it('cancel() is included in the return value', async () => {
+      const buf = makeNonAlphaFSV(5)
+      const { reader } = makeHangingReader(buf)
+      const result = await Demuxer.demuxStream(reader)
+      expect(typeof result.cancel).toBe('function')
+      result.cancel()
+    })
+
+    it('cancel() is idempotent', async () => {
+      const buf = makeNonAlphaFSV(5)
+      const { reader } = makeHangingReader(buf)
+      const { cancel } = await Demuxer.demuxStream(reader)
+      expect(() => { cancel(); cancel() }).not.toThrow()
+    })
+
+    it('pending loaded() promises reject when cancel() is called', async () => {
+      const buf = makeNonAlphaFSV(5)
+      const { reader } = makeHangingReader(buf)
+      const { loaded, cancel } = await Demuxer.demuxStream(reader)
+
+      const promise = loaded()
+      cancel()
+
+      await expect(promise).rejects.toThrow('FSV stream cancelled')
+    })
+
+    it('loaded() rejects immediately when called after cancel()', async () => {
+      const buf = makeNonAlphaFSV(5)
+      const { reader } = makeHangingReader(buf)
+      const { loaded, cancel } = await Demuxer.demuxStream(reader)
+
+      cancel()
+
+      await expect(loaded()).rejects.toThrow('FSV stream cancelled')
+    })
+
+    it('cancel() invokes reader.cancel()', async () => {
+      const buf = makeNonAlphaFSV(5)
+      const { reader, readerCancel } = makeHangingReader(buf)
+      const { cancel } = await Demuxer.demuxStream(reader)
+
+      cancel()
+
+      expect(readerCancel).toHaveBeenCalledOnce()
+    })
+  })
 })
 
 const config: VideoDecoderConfig = {
@@ -192,4 +240,40 @@ function bufferToStream(buf: Buffer): ReadableStreamDefaultReader<Uint8Array<Arr
     }
   })
   return stream.getReader()
+}
+
+/**
+ * Returns a reader that yields only the FSV header + manifest bytes, then
+ * blocks indefinitely until cancel() is called. This lets cancel() tests run
+ * without triggering EncodedVideoChunk construction (frame data is never sent).
+ */
+function makeHangingReader(buf: Buffer) {
+  const manifestLength = buf.readUInt32LE(4)
+  const headerAndManifest = buf.buffer.slice(
+    buf.byteOffset,
+    buf.byteOffset + 8 + manifestLength
+  ) as ArrayBuffer
+  const initialChunk = new Uint8Array(headerAndManifest) as Uint8Array<ArrayBuffer>
+
+  let unblockRead: () => void
+  const blocked = new Promise<void>(resolve => { unblockRead = resolve! })
+
+  const readerCancel = vi.fn(() => {
+    unblockRead()
+    return Promise.resolve()
+  })
+
+  let readCount = 0
+  const reader = {
+    read(): Promise<{ done: false; value: Uint8Array<ArrayBuffer> } | { done: true; value: undefined }> {
+      if (++readCount === 1) {
+        return Promise.resolve({ done: false as const, value: initialChunk })
+      }
+      return blocked.then(() => ({ done: true as const, value: undefined }))
+    },
+    cancel: readerCancel,
+    releaseLock: () => {}
+  } as unknown as ReadableStreamDefaultReader<Uint8Array<ArrayBuffer>>
+
+  return { reader, readerCancel }
 }
