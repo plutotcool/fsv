@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.5.1
+
+[compare changes](https://github.com/plutotcool/fsv/compare/v0.5.0...v0.5.1)
+
+### 🩹 Fixes
+
+- Restore closed video decoders ([1780bd6](https://github.com/plutotcool/fsv/commit/1780bd6))
+
+### 🏡 Chore
+
+- Merge pull request #35 from plutotcool/fix/video-decoder-recovery ([#35](https://github.com/plutotcool/fsv/issues/35))
+
+### 🤖 CI
+
+- Add demo job to CI workflow ([79674b0](https://github.com/plutotcool/fsv/commit/79674b0))
+
+### ❤️ Contributors
+
+- Julien Dargelos ([@juliendargelos](https://github.com/juliendargelos))
+- Juliendargelos <hello@julien.gl>
+
 ## v0.5.0
 
 [compare changes](https://github.com/plutotcool/fsv/compare/v0.4.1...v0.5.0)
