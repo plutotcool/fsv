@@ -53,11 +53,7 @@ export class TrackDecoder implements Video {
    */
   public constructor(callback: TrackDecoderCallback) {
     this.callback = callback
-
-    this.decoder = new VideoDecoder({
-      output: this.output,
-      error: this.error
-    })
+    this.decoder = this.createDecoder()
   }
 
   /**
@@ -77,7 +73,12 @@ export class TrackDecoder implements Video {
     this.currentFrame = undefined
     this.pendingFrame = undefined
 
-    this.decoder.reset()
+    if (this.decoder.state === 'closed') {
+      this.decoder = this.createDecoder()
+    } else {
+      this.decoder.reset()
+    }
+
     this.decoder.configure(this.config)
   }
 
@@ -105,7 +106,9 @@ export class TrackDecoder implements Video {
     }
 
     if (this.decoder.state === 'closed') {
+      this.decoder = this.createDecoder()
       this.decoder.configure(this.config!)
+      this.currentFrame = undefined
     }
 
     if (
@@ -150,6 +153,13 @@ export class TrackDecoder implements Video {
 
   private error = (error: unknown): void => {
     console.error('FSV', error)
+  }
+
+  private createDecoder(): VideoDecoder {
+    return new VideoDecoder({
+      output: this.output,
+      error: this.error
+    })
   }
 
   private static async config(
