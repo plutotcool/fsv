@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 
 import { Converter } from '../src/core/Converter'
 import { Demuxer } from '../src/core/Demuxer'
-import { H264, H265 } from '../src/core/Codec'
+import { H264, H265, AV1 } from '../src/core/Codec'
 
 describe('Converter', () => {
   describe('mp4/H.264 input (non-alpha)', () => {
@@ -55,6 +55,18 @@ describe('Converter', () => {
 
       const nalUnitType = getH265NalUnitType(fsv.frames[0].chunk)
       expect([19, 20]).toContain(nalUnitType) // IDR_W_RADL (19) or IDR_N_LP (20)
+    })
+
+    it('converts with libsvtav1 output codec', async () => {
+      const fsv = demux(await Converter.convert(H264_MP4_FIXTURE, {
+        outputCodec: AV1
+      }))
+
+      expect(fsv.width).toBe(320)
+      expect(fsv.frames.length).toBeGreaterThan(0)
+      expect(fsv.config.codec.startsWith('av01')).toBe(true)
+      expect(fsv.frames[0].chunk.type).toBe('key')
+      expect(fsv.frames[0].chunk.byteLength).toBeGreaterThan(0)
     })
 
     it('throws for a non-existent input path', async () => {
